@@ -1,6 +1,9 @@
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 import shelve
 
+_SUCCESS = 0
+_FAILURE = 1
+_DATABASE = "datasource_test0"
 
 class metaTreeNode():
 # metaTreeNodes are directories
@@ -45,16 +48,17 @@ class metaTreeNode():
             if pathname[i] == '/':
                 if pathname[:i+1] not in self.sub_directories :
                     self.sub_directories[pathname[:i+1]] = metaTreeNode(content_ID)
-                    d = shelve.open("datasource")
+                    d = shelve.open(_DATABASE)
                     d[str(content_ID)] = dict(
                                     st_mode=(S_IFDIR|0o755),
                                     st_ctime=time(),
                                     st_mtime=time(),
                                     st_atime=time(),
-                                    st_nlink=2,
+                                    st_nlink=2
                                     #st_uid,
                                     #st_gid,
-                                    st_size=0 )
+                                    #st_size=0 
+                                    )
                     d.close()
                     content_ID += 1
                 self.sub_directories[pathname[:i+1]].addFileDirectories(pathname[i+1:], content_ID)
@@ -64,16 +68,17 @@ class metaTreeNode():
             if pathname in self.sub_directories :
                 return content_ID
             self.sub_directories[pathname] = metaTreeNode(content_ID)
-            d = shelve.open("datasource")
+            d = shelve.open(_DATABASE)
             d[str(content_ID)] = dict(
                             st_mode=(S_IFDIR|0o755),
                             st_ctime=time(),
                             st_mtime=time(),
                             st_atime=time(),
-                            st_nlink=2,
+                            st_nlink=2
                             #st_uid,
                             #st_gid,
-                            st_size=0 )
+                            #st_size=0 )
+                            )
             d.close()
             content_ID += 1
             return content_ID
@@ -82,7 +87,7 @@ class metaTreeNode():
             if pathname in self.files_content_numbers :
                 return content_ID
             self.files_content_numbers[pathname] = content_ID
-            d = shelve.open("datasource")
+            d = shelve.open(_DATABASE)
             d[str(content_ID)] = dict(
                             st_mode=(S_IFREG | mode),
                             st_ctime=time(),
@@ -95,12 +100,13 @@ class metaTreeNode():
             d.close()
             content_ID += 1
             return content_ID
+
     
     def rmdir_iterate()
         # Delete All Files
         for key in self.files_content_numbers :
             ID = str( self.files_content_numbers[key] )
-            d = shelve.open("datasource")
+            d = shelve.open(_DATABASE)
             del d[ID]
             d.close()
 
@@ -111,9 +117,11 @@ class metaTreeNode():
 
         # Delete Current Directory
         ID = str( self.content_number )
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         del d[ID]
         d.close()
+
+
 
 class metaserver():
 
@@ -136,12 +144,13 @@ class metaserver():
 
         return self.root.getContentID(pathname)
 
+
     def addContentID(self, pathname):
         # Unique 'shelve_integer' is updated depending on how many new directories and file are added.
         self.shelve_integer = self.root.addFileDirectories(pathname, self.shelve_integer)        
         
     def updateFileSystem(self):
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         d["root"] = self
         d.close()
 
@@ -151,59 +160,64 @@ class metaserver():
     def chmod(self, path, mode):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID]
             attributes["st_mode"] &= 0o770000
             attributes["st_mode"] |= mode
             d[ID] = attributes
             d.close()#
-            return 0 # Success
+            return _SUCCESS
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 1 # Failure
+            return _FAILURE
 
 
     def chown(self, path, uid, gid):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID]
             attributes["st_uid"] = uid
             attributes["st_gid"] = gid
             d[ID] = attributes
             d.close()#
-            return 1 # Success
+            return _SUCCESS
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
 
     def create(self, path, mode):
+        if path[0] == '/' :
+            path = path[1:]
+
         if self.metaserverFindFileOrDirectory(path) != 0 :
             # File Already Exists
-            return 0 # Failure
+            return _FAILURE
 
         self.addContent(path, self.shelve_integer)
         self.chmod(path, mode)
         self.updateFileSystem()
-        return 1 # Success
+        return _SUCCESS
+
 
     def getattr(self, path):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID]
             d.close()#
@@ -211,15 +225,16 @@ class metaserver():
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE # Failure
+
 
     def getxattr(self, path, name):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID].get('attrs', {})
             d.close()#
@@ -229,15 +244,16 @@ class metaserver():
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
         
     def listxattr(self, path):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID].get('attrs', {})
             d.close()#
@@ -245,32 +261,60 @@ class metaserver():
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
 
     def mkdir(self, path, mode):
+        if path[0] == '/' :
+            path = path[1:]
+
         self.addContent(path, self.shelve_integer)
         self.chmod(path, mode)
         self.updateFileSystem()
         return _SUCCESS
 
-    def open(self, path, flags):
+
+    def open(self):
         self.fd += 1
         return self.fd
 
-    def readdir(self, path):
-        # return ['.', '..'] + [x[1:] for x in self.files if x != '/']
+
+    def readdir(self):
         # Obtain All File + Directory Names, Excluding The Root '/'
+        all_file_directory_paths = []
+
+        stack = []
+        working_node = self.root
+        stack.append(self.root)
+
+        string_stack = []
+        working_string = ""
+        string_stack.append("")
 
 
-        return ['.', '..'] + # Iterated Through All Files And Directories, return w/ complete pathnames
+        while(len(stack)!=0) :
+            working_node = stack.pop()
+            working_string = string_stack.pop()
+
+            for key in working_node.files_content_numbers :
+                all_file_directory_paths.append(working_string+key)
+            
+            for key in working_node.sub_directories :
+                all_file_directory_paths.append(working_string+key)
+                stack.append(working_node.sub_directories[key])
+                string_stack.append(working_string+key)
+
+        # return ['.', '..'] + [x[1:] for x in self.files if x != '/']
+        return ['.','..'] + [all_file_directory_paths.pop() while len(all_file_directory_paths)>0]
+
 
     def removexattr(self, path, name):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID].get('attrs', {})
             if name not in attributes
@@ -278,11 +322,12 @@ class metaserver():
             del attributes[name] 
             d[ID] = attributes
             d.close()
-            return 1 # Success
+            return _SUCCESS
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
 
     def rename(self, old, new):
         # Move DirectoryNode / File
@@ -297,6 +342,7 @@ class metaserver():
                     parent_node = current_node
                     current_node = current_node.sub_directories[path[element_start:i+1]]
                     element_start = i+2
+
 
     def rmdir(self, path):
         parent_node = self.root
@@ -315,19 +361,18 @@ class metaserver():
         if path[element_start:] in current_node.sub_directories :
             current_node.rmdir_iterate()
             del current_node #AHHH So I need to delete it in the original list as, well, will probably cause an error
-            return 0 #Success
+            return _SUCCESS
 
-        return 1 #Failure, No Existing File/Directory
+        return _FAILURE # No Existing File/Directory
                 
                     
-
     def setxattr(self, path, name, value):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID].get('attrs', {})
             if name not in attributes
@@ -335,16 +380,19 @@ class metaserver():
             attributes[name] = value
             d[ID] = attributes
             d.close()#
-            return 1 # Success
+            return _SUCCESS
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
 
     def symlink(self, target, source_len):
         self.addContent(target, self.shelve_integer)
         self.chmod(path, (S_IFLNK | 0o777))
         self.truncate(path, source_len)
+        return _SUCCESS
+
 
     def truncate(self, path, length):
         ID = self.metaserverFindFileOrDirectory(path)
@@ -354,12 +402,13 @@ class metaserver():
             ID = self.metaserverFindFileOrDirectory(path)
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
 
         attributes = d[ID]
         attributes["st_size"] = length
         d.close()#
         return attributes["st_size"] # Success
+
 
     def unlink(self, path):
         # Delete File, Symbolic Link, Hard Link, Special Node
@@ -375,22 +424,23 @@ class metaserver():
 
         # Delete File
         if path[element_start:] in current_node.files_content_numbers :
-            d = selve.open("datasource")
+            d = selve.open(_DATABASE)
             ID = str(current_node.files_content_numbers[path[element_start:]])
             del d[ID]
             del current_node.files_content_numbers[path[element_start:]]
             d.close()
-            return 0 #Success
+            return _SUCCESS
 
-        return 1 #No Such File
+        return _FAILURE
+
 
     def utimens(self, path, times):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
-            return 0 # Error In Locating File or Directory
+            return _FAILURE # Error In Locating File or Directory
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
         if d.has_key(ID) :
             attributes = d[ID]
             now = time()
@@ -400,11 +450,12 @@ class metaserver():
             attributes["st_mtime"] = mtime
             d[ID] = attributes
             d.close()#
-            return 1 # Success
+            return _SUCCESS
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return _FAILURE
+
 
     def write(self, path, length, offset):
         ID = self.metaserverFindFileOrDirectory(path)
@@ -414,7 +465,7 @@ class metaserver():
             ID = self.metaserverFindFileOrDirectory(path)
 
         ID = str(ID)
-        d = shelve.open("datasource")
+        d = shelve.open(_DATABASE)
 
         attributes = d[ID]
         if (offset + length) < attributes["st_size"] :
@@ -435,7 +486,7 @@ def main():
     iPortNumber = int(argv[1])
 
     #Create Class If Doesnt Exist, Else Load Class
-    d = shelve.open("datasource")
+    d = shelve.open(_DATABASE)
     if d.has_key("root") is False :
         merp = metaserver()
         d["root"] = merp

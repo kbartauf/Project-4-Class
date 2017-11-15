@@ -30,13 +30,13 @@ class Memory(LoggingMixIn, Operations):
         self.meta_proxy.mkdir(path, mode) # Meta Server
 
     def open(self, path, flags):
-        self.meta_proxy.open(path, flags) # Meta Server
+        self.meta_proxy.open() # Meta Server
 
     def read(self, path, size, offset, fh):
         # Data Servers
 
     def readdir(self, path, fh):
-        self.meta_proxy.readdir(path) # Meta Server
+        self.meta_proxy.readdir() # Meta Server
 
     def readlink(self, path):
         # Data Servers
@@ -89,24 +89,25 @@ def main():
 
     test = memory( int(argv[1]), dataPorts)
 
-    test.chmod(self, path, mode)
-    test.chown(self, path, uid, gid)
-    test.create(self, path, mode)
-    test.getattr(self, path)
-    test.getxattr(self, path, name)
-    test.listxattr(self, path)
-    test.mkdir(self, path, mode)
-    test.open(self, path, flags)
-    test.readdir(self, path, fh)
-    test.removexattr(self, path, name)
-    test.rename(self, old, new)
-    test.rmdir(self, path)
-    test.setxattr(self, path, name, value, options, position=0)
-    test.symlink(self, target, source):
-    test.truncate(self, path, length)
-    test.unlink(self, path)
-    test.utimens(self, path)
-    test.write(self, path, data, offset, fh)
+    test.mkdir(path, mode)
+    test.create("/merp/", mode)
+
+    test.chmod(path, mode)
+    test.chown(path, uid, gid)
+    test.getattr(path)
+    test.getxattr(path, name)
+    test.listxattr(path)
+    test.open(None, None)
+    test.readdir(None, None)
+    test.removexattr(path, name)
+    test.rename(old, new)
+    test.rmdir(path)
+    test.setxattr(path, name, value, None)
+    test.symlink(target, source)
+    test.truncate(path, length)
+    test.unlink(path)
+    test.utimens(path)
+    test.write(path, data, offset, None)
 
     return
 
