@@ -84,11 +84,14 @@ class metaTreeNode():
             self.files_content_numbers[pathname] = content_ID
             d = shelve.open("datasource")
             d[str(content_ID)] = dict(
-                            #st_mode=(S_IFDIR|0o755),
+                            st_mode=(S_IFREG | mode),
                             st_ctime=time(),
                             st_mtime=time(),
                             st_atime=time(),
-                            st_nlink=2 )
+                            st_nlink=1,
+                            #st_uid,
+                            #st_gid,
+                            st_size=0  )
             d.close()
             content_ID += 1
             return content_ID
@@ -133,11 +136,17 @@ class metaserver():
 
         return self.root.getContentID(pathname)
 
-
     def addContentID(self, pathname):
         # Unique 'shelve_integer' is updated depending on how many new directories and file are added.
         self.shelve_integer = self.root.addFileDirectories(pathname, self.shelve_integer)        
         
+    def updateFileSystem(self):
+        d = shelve.open("datasource")
+        d["root"] = self
+        d.close()
+
+
+    ### FUSE Functions ###
 
     def chmod(self, path, mode):
         ID = self.metaserverFindFileOrDirectory(path)
@@ -152,11 +161,11 @@ class metaserver():
             attributes["st_mode"] |= mode
             d[ID] = attributes
             d.close()#
-            return 1 # Success
+            return 0 # Success
         else :
             # ERROR IN LOCATING
             d.close()#
-            return 0 # Failure
+            return 1 # Failure
 
 
     def chown(self, path, uid, gid):
@@ -179,11 +188,13 @@ class metaserver():
             return 0 # Failure
 
     def create(self, path, mode):
-        if self.metaserverFindFileOrDirectory(path) == 0 :
+        if self.metaserverFindFileOrDirectory(path) != 0 :
+            # File Already Exists
             return 0 # Failure
 
         self.addContent(path, self.shelve_integer)
         self.chmod(path, mode)
+        self.updateFileSystem()
         return 1 # Success
 
     def getattr(self, path):
@@ -239,13 +250,18 @@ class metaserver():
     def mkdir(self, path, mode):
         self.addContent(path, self.shelve_integer)
         self.chmod(path, mode)
+        self.updateFileSystem()
+        return _SUCCESS
 
     def open(self, path, flags):
         self.fd += 1
         return self.fd
 
-    def readdir(self, path, fh):
+    def readdir(self, path):
         # return ['.', '..'] + [x[1:] for x in self.files if x != '/']
+        # Obtain All File + Directory Names, Excluding The Root '/'
+
+
         return ['.', '..'] + # Iterated Through All Files And Directories, return w/ complete pathnames
 
     def removexattr(self, path, name):
@@ -305,7 +321,7 @@ class metaserver():
                 
                     
 
-    def setxattr(self, path, name, value, options, position=0):
+    def setxattr(self, path, name, value):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
             return 0 # Error In Locating File or Directory
@@ -368,7 +384,7 @@ class metaserver():
 
         return 1 #No Such File
 
-    def utimens(self, path, times=None):
+    def utimens(self, path, times):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
             return 0 # Error In Locating File or Directory
@@ -390,7 +406,7 @@ class metaserver():
             d.close()#
             return 0 # Failure
 
-    def write(self, path, length, offset, fh):
+    def write(self, path, length, offset):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
             # No File or Directory
