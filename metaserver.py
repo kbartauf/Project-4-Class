@@ -1,7 +1,6 @@
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 import shelve
 
-self.attributes = dict(st_mode=mode,st_ctime=now,st_mtime=now,st_atime=now,st_nlink=nlink)
 
 class metaTreeNode():
 # metaTreeNodes are directories
@@ -42,10 +41,21 @@ class metaTreeNode():
 
     def addFileDirectories(pathname, contentID):
         content_ID = contentID
-        for in range(0,len(pathname)-1):
+        for i in range(0,len(pathname)-1):
             if pathname[i] == '/':
                 if pathname[:i+1] not in self.sub_directories :
-                    self.sub_directories[pathname[:i+1]] = metaTreeNode(content_ID, mode, now, nlink)
+                    self.sub_directories[pathname[:i+1]] = metaTreeNode(content_ID)
+                    d = shelve.open("datasource")
+                    d[str(content_ID)] = dict(
+                                    st_mode=(S_IFDIR|0o755),
+                                    st_ctime=time(),
+                                    st_mtime=time(),
+                                    st_atime=time(),
+                                    st_nlink=2,
+                                    #st_uid,
+                                    #st_gid,
+                                    st_size=0 )
+                    d.close()
                     content_ID += 1
                 self.sub_directories[pathname[:i+1]].addFileDirectories(pathname[i+1:], content_ID)
 
@@ -53,7 +63,18 @@ class metaTreeNode():
             # Add Final Directory
             if pathname in self.sub_directories :
                 return content_ID
-            self.sub_directories[pathname] = metaTreeNode(content_ID, mode, now, nlink)
+            self.sub_directories[pathname] = metaTreeNode(content_ID)
+            d = shelve.open("datasource")
+            d[str(content_ID)] = dict(
+                            st_mode=(S_IFDIR|0o755),
+                            st_ctime=time(),
+                            st_mtime=time(),
+                            st_atime=time(),
+                            st_nlink=2,
+                            #st_uid,
+                            #st_gid,
+                            st_size=0 )
+            d.close()
             content_ID += 1
             return content_ID
         else :
@@ -61,6 +82,14 @@ class metaTreeNode():
             if pathname in self.files_content_numbers :
                 return content_ID
             self.files_content_numbers[pathname] = content_ID
+            d = shelve.open("datasource")
+            d[str(content_ID)] = dict(
+                            #st_mode=(S_IFDIR|0o755),
+                            st_ctime=time(),
+                            st_mtime=time(),
+                            st_atime=time(),
+                            st_nlink=2 )
+            d.close()
             content_ID += 1
             return content_ID
     
@@ -86,7 +115,7 @@ class metaTreeNode():
 class metaserver():
 
     def __init__(self):
-        self.root = metaTreeNode( 0,(S_IFDIR|0o755),time(),2 )
+        self.root = metaTreeNode(0) #(S_IFDIR|0o755),time(),2
         self.shelve_integer = 1
         self.fd = 0
 
@@ -157,7 +186,7 @@ class metaserver():
         self.chmod(path, mode)
         return 1 # Success
 
-    def getattr(self, path, fh=None):
+    def getattr(self, path):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
             return 0 # Error In Locating File or Directory
@@ -173,7 +202,7 @@ class metaserver():
             d.close()#
             return 0 # Failure
 
-    def getxattr(self, path, name, position=0):
+    def getxattr(self, path, name):
         ID = self.metaserverFindFileOrDirectory(path)
         if ID == 0 :
             return 0 # Error In Locating File or Directory
@@ -404,23 +433,23 @@ def main():
 
     # Register Functions
     server.register_function(merp.chmod,"chmod")
-    server.register_function(merp.chmod,"chown")
-    server.register_function(merp.chmod,"create")
-    server.register_function(merp.chmod,"getattr")
-    server.register_function(merp.chmod,"getxattr")
-    server.register_function(,"listxattr")
-    server.register_function(,"mkdir")
-    server.register_function(,"open")
-    server.register_function(,"readdir")
-    server.register_function(,"removexattr")
-    server.register_function(,"rename")
-    server.register_function(,"rmdir")
-    server.register_function(,"setxattr")
-    server.register_function(,"symlink")
-    server.register_function(,"truncate")
-    server.register_function(,"unlink")
-    server.register_function(,"utimens")
-    server.register_function(,"write")
+    server.register_function(merp.chown,"chown")
+    server.register_function(merp.create,"create")
+    server.register_function(merp.getattr,"getattr")
+    server.register_function(merp.getxattr,"getxattr")
+    server.register_function(merp.listxattr,"listxattr")
+    server.register_function(merp.mkdir,"mkdir")
+    server.register_function(merp.open,"open")
+    server.register_function(merp.readdir,"readdir")
+    server.register_function(merp.removexattr,"removexattr")
+    server.register_function(merp.rename,"rename")
+    server.register_function(merp.rmdir,"rmdir")
+    server.register_function(merp.setxattr,"setxattr")
+    server.register_function(merp.symlink,"symlink")
+    server.register_function(merp.truncate,"truncate")
+    server.register_function(merp.unlink,"unlink")
+    server.register_function(merp.utimens,"utimens")
+    server.register_function(merp.write,"write")
 
     # Run Server's Main Loop
     server.serve_forever()
