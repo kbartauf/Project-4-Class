@@ -63,7 +63,25 @@ class metaTreeNode():
             self.files_content_numbers[pathname] = content_ID
             content_ID += 1
             return content_ID
+    
+    def rmdir_iterate()
+        # Delete All Files
+        for key in self.files_content_numbers :
+            ID = str( self.files_content_numbers[key] )
+            d = shelve.open("datasource")
+            del d[ID]
+            d.close()
 
+        # *invocation:* Run Delete All SubDirectories
+        for key in self.sub_directories :
+            self.sub_directories[key].rmdir_iterate()
+            del self.sub_directories[key] # Delete Tree Nodes
+
+        # Delete Current Directory
+        ID = str( self.content_number )
+        d = shelve.open("datasource")
+        del d[ID]
+        d.close()
 
 class metaserver():
 
@@ -223,9 +241,40 @@ class metaserver():
 
     def rename(self, old, new):
         # Move DirectoryNode / File
+        parent_node = self.root
+        current_node = self.root
+        element_start = 0
+
+        # Delete Directory, Subdirectories, and Files
+        for i in range(0,len(path)-1) :
+            if path[i] == '/' :
+                if path[element_start:i+1] in current_node.sub_directories :
+                    parent_node = current_node
+                    current_node = current_node.sub_directories[path[element_start:i+1]]
+                    element_start = i+2
 
     def rmdir(self, path):
+        parent_node = self.root
+        current_node = self.root
+        element_start = 0
+
         # Delete Directory, Subdirectories, and Files
+        for i in range(0,len(path)-1) :
+            if path[i] == '/' :
+                if path[element_start:i+1] in current_node.sub_directories :
+                    parent_node = current_node
+                    current_node = current_node.sub_directories[path[element_start:i+1]]
+                    element_start = i+2
+
+        # Delete Directories
+        if path[element_start:] in current_node.sub_directories :
+            current_node.rmdir_iterate()
+            del current_node #AHHH So I need to delete it in the original list as, well, will probably cause an error
+            return 0 #Success
+
+        return 1 #Failure, No Existing File/Directory
+                
+                    
 
     def setxattr(self, path, name, value, options, position=0):
         ID = self.metaserverFindFileOrDirectory(path)
@@ -269,6 +318,26 @@ class metaserver():
 
     def unlink(self, path):
         # Delete File, Symbolic Link, Hard Link, Special Node
+        current_node = self.root
+        element_start = 0
+
+        # Delete Directory, Subdirectories, and Files
+        for i in range(0,len(path)-1) :
+            if path[i] == '/' :
+                if path[element_start:i+1] in current_node.sub_directories :
+                    current_node = current_node.sub_directories[path[element_start:i+1]]
+                    element_start = i+2
+
+        # Delete File
+        if path[element_start:] in current_node.files_content_numbers :
+            d = selve.open("datasource")
+            ID = str(current_node.files_content_numbers[path[element_start:]])
+            del d[ID]
+            del current_node.files_content_numbers[path[element_start:]]
+            d.close()
+            return 0 #Success
+
+        return 1 #No Such File
 
     def utimens(self, path, times=None):
         ID = self.metaserverFindFileOrDirectory(path)
