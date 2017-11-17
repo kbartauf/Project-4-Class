@@ -75,7 +75,7 @@ class Memory(LoggingMixIn, Operations):
 
     def write(self, path, data, offset, fh):
         # Data Servers
-        self.meta_proxy.write(path, data, offset) # Meta Server
+        self.meta_proxy.write(path, len(data), offset) # Meta Server
 
 
 def main():
@@ -89,8 +89,14 @@ def main():
 
     test = memory( int(argv[1]), dataPorts)
 
-    test.mkdir(path, mode)
-    test.create("/merp/", mode)
+    test.mkdir("/sub1_folder0/", mode)
+    test.mkdir("/sub1_folder0/sub2_folder0/sub3_folder0/sub4_folder0", mode)
+    test.mkdir("/sub1_folder0/sub2_folder0/sub3_folder1/", mode)
+
+    test.create("/sub1_folder0/test.txt", mode)
+    test.create("/sub1_folder0/sub2_folder0/sub3_folder0/copy.txt",mode)
+    test.create("/sub1_folder0/sub2_folder0/sub3_folder1/copy.txt",mode)
+    test.create("/sub1_folder0/sub2_folder0/sub3_folder2/copy.txt",mode)
 
     test.chmod(path, mode)
     test.chown(path, uid, gid)

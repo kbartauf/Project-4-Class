@@ -44,6 +44,25 @@ class metaserver():
         return node
 
 
+    def createParentDirectory(path) :
+        pathname = path
+        if pathname[0]=='/' :
+            pathname = pathname[1:]
+        parent_node = self.root
+
+        h = 0
+        for i in range(0,len(pathname)-1) :
+            if pathname[i] == '/' :
+                if pathname[h:i+1] not in parent_node.sub_directories :
+                    parent_node.sub_directories[pathname[h:i+1]] = metaTreeNode(self.shelve_integer)
+                    self.shelve_integer += 1
+                parent_node = parent_node.sub_directories[pathname[h:i+1]]
+                h = i+1
+        pathname = pathname[h:]
+
+        return parent_node
+
+
     def getName(path) :
         
         for i in range(0,len(path)-1) :
@@ -103,45 +122,34 @@ class metaserver():
 
 
     def create(self, path, mode):
-        pathname = path
-        if pathname[0]=='/' :
-            pathname[1:]
-        parent_node = self.root
 
-        h = 0
-        for i in range(0,len(pathname)-1) :
-            if pathname[i] == '/' :
-                if pathname[h:i+1] not in parent_node.sub_directories :
-                    parent_node.sub_directories[pathname[h:i+1]] = metaTreeNode(self.shelve_integer)
-                    self.shelve_integer += 1
-                parent_node = parent_node.sub_directories[pathname[h:i+1]]
-                h = i+1
-        pathname = pathname[h:]
+        parent_node = self.createParentDirectory(path)
+        pathname = self.getName(path)
 
         if pathname[-1] == '/' :
             # Directory
             if pathname in parent_node.sub_directories :
-                # return _FAILURE # Already Exists?
+                return _FAILURE # Already Exists?
             else :
                 parent_node.sub_directories[pathname] = metaTreeNode(self.shelve_integer)
+            self.chmod(path, mode)
         else :
             # File
             if pathname in parent_node.files_specs :
-                # return _FAILURE # Already Exits?
+                return _FAILURE # Already Exits?
             else :
                 parent_node.files_specs[pathname] = dict(
-                                                    st_mode=(S_IFDIR|0o755),
+                                                    st_mode=(S_IFREG | mode),
                                                     st_ctime=time(),
                                                     st_mtime=time(),
                                                     st_atime=time(),
-                                                    st_nlink=2
+                                                    st_nlink=1
                                                     #st_uid,
                                                     #st_gid,
                                                     st_size=length+offset,
                                                     st_HASH_ID= self.shelve_integer )
 
         self.shelve_integer += 1
-        self.chmod(path, mode)
         self.fd += 1
         return self.fd
 
@@ -213,13 +221,17 @@ class metaserver():
         return attrs.keys()
 
 
-    #def mkdir(self, path, mode):
-        if path[0] == '/' :
-            path = path[1:]
+    def mkdir(self, path, mode):
+        parent_node = self.createParentDirectory(path)
+        pathname = self.getName(path)
 
-        self.addContent(path, self.shelve_integer)
-        self.chmod(path, mode)
-        self.updateFileSystem()
+        if pathname[-1] == '/' :
+            # Directory
+            if pathname in parent_node.sub_directories :
+                # return _FAILURE # Already Exists?
+            else :
+                parent_node.sub_directories[pathname] = metaTreeNode(self.shelve_integer)
+
         return _SUCCESS
 
 
@@ -228,15 +240,15 @@ class metaserver():
         return self.fd
 
 
-    #def readdir(self):
+    def readdir(self):
         # Obtain All File + Directory Names, Excluding The Root '/'
         all_file_directory_paths = []
-
         stack = []
+        string_stack = []
+
         working_node = self.root
         stack.append(self.root)
-
-        string_stack = []
+        
         working_string = ""
         string_stack.append("")
 
@@ -280,25 +292,70 @@ class metaserver():
         return _SUCCESS
 
 
-    #def rename(self, old, new):
-        # Move DirectoryNode / File
-        parent_node = self.root
-        current_node = self.root
-        element_start = 0
+    def rename(self, old, new):
+        # If new name is the same as old, return error
+        if old == new :
+            return _FAILURE
 
-        # Delete Directory, Subdirectories, and Files
-        for i in range(0,len(path)-1) :
-            if path[i] == '/' :
-                if path[element_start:i+1] in current_node.sub_directories :
-                    parent_node = current_node
-                    current_node = current_node.sub_directories[path[element_start:i+1]]
-                    element_start = i+2
+        # If new name already exists, return error
+        potential_parent = self.getParentDirectory(new)
+        potential_filename = self.getName(new)
+        if potential_parent != _FAILURE :
+            if potential_filename[-1] = '/' :
+                # Directory
+                if potential_filename in potential_parent.sub_directories :
+                    return _FAILURE
+            else :
+                # File
+                if potential_filename in potential_parent.files_specs :
+                    return _FAILURE
+
+        # If old name does not exist, return error
+        old_parent_node = self.getParentDirectory(old)
+        old_parent_filename = self.getName(old)
+        if old_parent_node == _FAILURE :
+            return _FAILURE
+        if old_parent_filename[-1] = '/' :
+            # Directory
+            if old_parent_filename not in old_parent_node.sub_directories :
+                return _FAILURE
+        else :
+            # File
+            if old_parent_filename not in old_parent_node.files_specs :
+                return _FAILURE
+
+        # Change To New Position, Delete Old
+            # old_parent_node = self.getParentDirectory(old)
+            # old_parent_filename = self.getName(old)
+        parent_node = self.createParentDirectory(new)
+        pathname = self.getName(new)
+
+        if old_parent_filename[-1] == '/' :
+            # Directory
+            if pathname[-1] != '/' :
+                pathname += '/'
+            parent_node.sub_directories.insert( pathname,
+                old_parent_node.sub_directories.pop(old_parent_filename) )
+            
+        else :
+            # File
+            while pathname[-1] == '/' :
+                pathname = pathname[:-1]
+                if len(pathname) == 0 :
+                    return _FAILURE
+            parent_node.files_specs.insert( pathname,
+                old_parent_node.files_specs.pop(old_parent_filename) )
+
+        return _SUCCESS
 
 
     #def rmdir(self, path):
+#l.insert(newindex, l.pop(oldindex))
         parent_node = self.root
         current_node = self.root
         element_start = 0
+
+        # Account for -r ???
 
         # Delete Directory, Subdirectories, and Files
         for i in range(0,len(path)-1) :
@@ -340,29 +397,32 @@ class metaserver():
         return _SUCCESS
 
 
-    #def symlink(self, target, source_len):
+    def symlink(self, target, source_len):
+        parent_node = createParentDirectory(target)
+        filename = getName(target)
+        
+        if filename in parent_node.files_specs :
+            return _FAILURE
+
+        parent_node.files_specs[filename] = dict(st_mode= (S_IFLNK | 0o777),
+                                                st_nlink= 1,
+                                                st_size= source_len )
 
 
-    #def truncate(self, path, length):
+    def truncate(self, path, length):
         parent_node = getParentDirectory(path)
         filename = getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
-        if filename[-1] == '/' :
-            # Directory
-            if filename in parent_node.sub_directories :
+        if filename not in parent_node.files_specs :
+            return _FAILURE
 
-            else :
-                return _FAILURE
-        else :
-            # File
-            if filename in parent_node.files_specs :
-            else :
-                return _FAILURE
+        parent_node.files_specs[filename]['st_size'] = length        
 
 
     #def unlink(self, path):
+#l.insert(newindex, l.pop(oldindex))
         # Delete File, Symbolic Link, Hard Link, Special Node
         current_node = self.root
         element_start = 0
@@ -405,6 +465,8 @@ class metaserver():
         else :
             # File
             if filename in parent_node.files_specs :
+                parent_node.files_specs[filename]['st_atime'] = atime
+                parent_node.files_specs[filename]['st_mtime'] = mtime
             else :
                 return _FAILURE
 
@@ -426,11 +488,11 @@ class metaserver():
             else :
                 # File Does Not Currently Exist
                 parent_node.files_specs[filename] = dict(
-                                                    st_mode=(S_IFDIR|0o755),
+                                                    st_mode=(S_IFREG|0o777),
                                                     st_ctime=time(),
                                                     st_mtime=time(),
                                                     st_atime=time(),
-                                                    st_nlink=2
+                                                    st_nlink=1
                                                     #st_uid,
                                                     #st_gid,
                                                     st_size=length+offset,
@@ -439,6 +501,7 @@ class metaserver():
             return parent_node.files_specs[filename]['st_size']
         else :
             # Directory
+            return _FAILURE
         
         return _FAILURE
 
