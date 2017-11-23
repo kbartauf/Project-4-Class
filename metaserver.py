@@ -349,29 +349,38 @@ class metaserver():
         return _SUCCESS
 
 
-    #def rmdir(self, path):
-#l.insert(newindex, l.pop(oldindex))
+    def rmdir(self, path):
+        # Only Remove Empty Directories
+
         parent_node = self.root
         current_node = self.root
+        current_name = path
+
+        # Find Directory, Subdirectories, and Files
         element_start = 0
-
-        # Account for -r ???
-
-        # Delete Directory, Subdirectories, and Files
-        for i in range(0,len(path)-1) :
+        for i in range(0,len(path)) :
             if path[i] == '/' :
                 if path[element_start:i+1] in current_node.sub_directories :
                     parent_node = current_node
                     current_node = current_node.sub_directories[path[element_start:i+1]]
+                    current_name = path[element_start:]
                     element_start = i+2
+                else
+                    return _FAILURE
 
-        # Delete Directories
-        if path[element_start:] in current_node.sub_directories :
-            current_node.rmdir_iterate()
-            del current_node #AHHH So I need to delete it in the original list as, well, will probably cause an error
-            return _SUCCESS
+        # Delete Directory
+        if path[-1] == '/' :
+            if len(current_node.sub_directories) == 0 :
+                if len(current_node.files_specs) == 0 :
+                    del parent_node.sub_directories[current_name]
+                    return _SUCCESS
 
-        return _FAILURE # No Existing File/Directory
+        # Delete File (In Retrospect, This is Obviously Unnecessary)
+        #if current_name in current_node.files_specs :
+        #    del current_node.files_specs[current_name]
+        #    return _SUCCESS
+
+        return _FAILURE
                 
                     
     def setxattr(self, path, name, value):
@@ -421,26 +430,67 @@ class metaserver():
         parent_node.files_specs[filename]['st_size'] = length        
 
 
-    #def unlink(self, path):
-#l.insert(newindex, l.pop(oldindex))
-        # Delete File, Symbolic Link, Hard Link, Special Node
+    def unlink(self, path):
+        parent_node = self.root
         current_node = self.root
-        element_start = 0
+        current_name = path
 
-        # Delete Directory, Subdirectories, and Files
-        for i in range(0,len(path)-1) :
+        # Find Directory, Subdirectories, and Files
+        element_start = 0
+        for i in range(0,len(path)) :
             if path[i] == '/' :
                 if path[element_start:i+1] in current_node.sub_directories :
+                    parent_node = current_node
                     current_node = current_node.sub_directories[path[element_start:i+1]]
+                    current_name = path[element_start:]
                     element_start = i+2
+                else
+                    return _FAILURE
 
-        # Delete File
-        if path[element_start:] in current_node.files_content_numbers :
-            d = selve.open(_DATABASE)
-            ID = str(current_node.files_content_numbers[path[element_start:]])
-            del d[ID]
-            del current_node.files_content_numbers[path[element_start:]]
-            d.close()
+        # If Directory, Delete Directories Recursively
+        if path[-1] == '/' :
+
+            # Parent Nodes w/ Children to Be Deleted
+            node_stack = []
+            node_stack.append(parent_node)
+            string_stack = []
+            string_stack.append(current_name)
+
+            # Directory Stack To Iterate Through
+            working_node = None
+            working_string = ""
+            directory_stack = []
+            directory_stack.append(current_node)
+
+            # Build Stack With Node Pointers + Names
+            while(len(directory_stack)!=0):
+                working_node = directory_stack.pop()
+
+                # Delete Files
+                for key in working_node.files_specs :
+                    del working_node.files_specs[key]
+
+                # Cannot Delete Yet, 
+                for key in working_node.sub_directories :
+                    # Add To directory_stack to iterate through all lower levels
+                    directory_stack.append(working_node)
+
+                    # Create Stacks To Delete All At Once
+                    node_stack.append(working_node)
+                    string_stack.append(key)
+
+            # Delete Sub Directories Recursively
+            while(len(node_stack)!=0) :
+                working_node = node_stack.pop()
+                working_string = string_stack.pop()
+                del working_node.sub_directories[working_string]
+
+            return _SUCCESS
+
+
+        # If File, Delete File
+        if current_name in current_node.files_specs :
+            del current_node.files_specs[current_name]
             return _SUCCESS
 
         return _FAILURE
