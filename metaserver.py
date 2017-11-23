@@ -1,7 +1,13 @@
+import sys
 from SimpleXMLRPCServer import SimpleXMLRPCServer
+from stat import S_IFDIR, S_IFLNK, S_IFREG
+from time import time
 
 _SUCCESS = 0
 _FAILURE = 1
+
+# To Do:
+    # Update nlink Mechanics (Hard Links??)
 
 class metaTreeNode():
     def __init__(self, uniqueID):
@@ -30,7 +36,7 @@ class metaserver():
 
     ### Support Functions ###        
 
-    def getParentDirectory(path) :
+    def getParentDirectory(self, path) :
         node = self.root
         pathname = path
         
@@ -44,7 +50,7 @@ class metaserver():
         return node
 
 
-    def createParentDirectory(path) :
+    def createParentDirectory(self, path) :
         pathname = path
         if pathname[0]=='/' :
             pathname = pathname[1:]
@@ -63,7 +69,7 @@ class metaserver():
         return parent_node
 
 
-    def getName(path) :
+    def getName(self, path) :
         
         for i in range(0,len(path)-1) :
             if path[i] == '/' :
@@ -71,11 +77,17 @@ class metaserver():
         return pathname
 
 
+    # Return _FAILURE If An Inappropriate Name Is Given
+    def namingShenanigans(self, name):
+        # return _FAILURE 
+        return _SUCCESS
+
+
     ### FUSE Functions ###
 
     def chmod(self, path, mode):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -98,8 +110,8 @@ class metaserver():
 
 
     def chown(self, path, uid, gid):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -143,10 +155,10 @@ class metaserver():
                                                     st_ctime=time(),
                                                     st_mtime=time(),
                                                     st_atime=time(),
-                                                    st_nlink=1
+                                                    st_nlink=1,
                                                     #st_uid,
                                                     #st_gid,
-                                                    st_size=length+offset,
+                                                    st_size=0,
                                                     st_HASH_ID= self.shelve_integer )
 
         self.shelve_integer += 1
@@ -155,8 +167,8 @@ class metaserver():
 
 
     def getattr(self, path):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -175,8 +187,8 @@ class metaserver():
 
 
     def getxattr(self, path, name):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -200,8 +212,8 @@ class metaserver():
 
         
     def listxattr(self, path):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -228,7 +240,7 @@ class metaserver():
         if pathname[-1] == '/' :
             # Directory
             if pathname in parent_node.sub_directories :
-                # return _FAILURE # Already Exists?
+                return _FAILURE #or _SUCCESS? Already Exists
             else :
                 parent_node.sub_directories[pathname] = metaTreeNode(self.shelve_integer)
 
@@ -257,7 +269,7 @@ class metaserver():
             working_node = stack.pop()
             working_string = string_stack.pop()
 
-            for key in working_node.files_content_numbers :
+            for key in working_node.files_specs :
                 all_file_directory_paths.append(working_string+key)
             
             for key in working_node.sub_directories :
@@ -266,12 +278,12 @@ class metaserver():
                 string_stack.append(working_string+key)
 
         # return ['.', '..'] + [x[1:] for x in self.files if x != '/']
-        return ['.','..'] + [all_file_directory_paths.pop() while len(all_file_directory_paths)>0]
+        return ['.','..'] + all_file_directory_paths
 
 
     def removexattr(self, path, name):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -301,7 +313,7 @@ class metaserver():
         potential_parent = self.getParentDirectory(new)
         potential_filename = self.getName(new)
         if potential_parent != _FAILURE :
-            if potential_filename[-1] = '/' :
+            if potential_filename[-1] == '/' :
                 # Directory
                 if potential_filename in potential_parent.sub_directories :
                     return _FAILURE
@@ -315,7 +327,7 @@ class metaserver():
         old_parent_filename = self.getName(old)
         if old_parent_node == _FAILURE :
             return _FAILURE
-        if old_parent_filename[-1] = '/' :
+        if old_parent_filename[-1] == '/' :
             # Directory
             if old_parent_filename not in old_parent_node.sub_directories :
                 return _FAILURE
@@ -365,7 +377,7 @@ class metaserver():
                     current_node = current_node.sub_directories[path[element_start:i+1]]
                     current_name = path[element_start:]
                     element_start = i+2
-                else
+                else :
                     return _FAILURE
 
         # Delete Directory
@@ -384,8 +396,8 @@ class metaserver():
                 
                     
     def setxattr(self, path, name, value):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -407,8 +419,8 @@ class metaserver():
 
 
     def symlink(self, target, source_len):
-        parent_node = createParentDirectory(target)
-        filename = getName(target)
+        parent_node = self.createParentDirectory(target)
+        filename = self.getName(target)
         
         if filename in parent_node.files_specs :
             return _FAILURE
@@ -419,8 +431,8 @@ class metaserver():
 
 
     def truncate(self, path, length):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -444,7 +456,7 @@ class metaserver():
                     current_node = current_node.sub_directories[path[element_start:i+1]]
                     current_name = path[element_start:]
                     element_start = i+2
-                else
+                else :
                     return _FAILURE
 
         # If Directory, Delete Directories Recursively
@@ -497,8 +509,8 @@ class metaserver():
 
 
     def utimens(self, path, times):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         now = time()
         atime, mtime = times if times else (now, now)
@@ -524,8 +536,8 @@ class metaserver():
 
 
     def write(self, path, length, offset):
-        parent_node = getParentDirectory(path)
-        filename = getName(path)
+        parent_node = self.getParentDirectory(path)
+        filename = self.getName(path)
 
         if parent_node == _FAILURE :
             return _FAILURE
@@ -533,7 +545,7 @@ class metaserver():
             # File
             if filename in parent_node.files_specs :
                 # If New Data And Offset Are Larger Than Current Size
-                if (offset+length) > parent_node.files_specs[filename]['st_size']
+                if (offset+length) > parent_node.files_specs[filename]['st_size'] :
                     parent_node.files_specs[filename]['st_size'] = (offset+length)
             else :
                 # File Does Not Currently Exist
@@ -542,7 +554,7 @@ class metaserver():
                                                     st_ctime=time(),
                                                     st_mtime=time(),
                                                     st_atime=time(),
-                                                    st_nlink=1
+                                                    st_nlink=1,
                                                     #st_uid,
                                                     #st_gid,
                                                     st_size=length+offset,
@@ -558,9 +570,10 @@ class metaserver():
 
 
 def main():
-    if( len(sys.argv) != 2 )
-        print('usage: %s <mountpoint>' % argv[0])
-    iPortNumber = int(argv[1])
+    if( len(sys.argv) != 2 ) :
+        print('usage: %s <mountpoint>' % sys.argv[0])
+        return _FAILURE
+    iPortNumber = int(sys.argv[1])
 
     # Create Memory Class
     merp = metaserver()
