@@ -9,43 +9,43 @@ class Memory():
 #            self.data_proxy_array[i] = xmlrpclib.ServerProxy("http://localhost:"+str(iPort)+"/")
 
     def chmod(self, path, mode):
-        self.meta_proxy.chmod(path, mode) # Meta Server
+        return self.meta_proxy.chmod(path, mode) # Meta Server
 
     def chown(self, path, uid, gid):
-        self.meta_proxy.chown(path, uid, gid) # Meta Server
+        return self.meta_proxy.chown(path, uid, gid) # Meta Server
 
     def create(self, path, mode):
-        self.meta_proxy.create(path, mode) # Meta Server
+        return self.meta_proxy.create(path, mode) # Meta Server
 
     def getattr(self, path, fh=None):
-        self.meta_proxy.getattr(path) # Meta Server
+        return self.meta_proxy.getattr(path) # Meta Server
 
     def getxattr(self, path, name, position=0):
-        self.meta_proxy.getxattr(path, name) # Meta Server
+        return self.meta_proxy.getxattr(path, name) # Meta Server
 
     def listxattr(self, path):
-        self.meta_proxy.listxattr(path) # Meta Server
+        return self.meta_proxy.listxattr(path) # Meta Server
 
     def mkdir(self, path, mode):
         # Data Servers
-        self.meta_proxy.mkdir(path, mode) # Meta Server
+        return self.meta_proxy.mkdir(path, mode) # Meta Server
 
     def open(self, path, flags):
-        self.meta_proxy.open() # Meta Server
+        return self.meta_proxy.open() # Meta Server
 
     def read(self, path, size, offset, fh):
         None
         # Data Servers
 
     def readdir(self, path, fh):
-        self.meta_proxy.readdir() # Meta Server
+        return self.meta_proxy.readdir() # Meta Server
 
     def readlink(self, path):
         None
         # Data Servers
 
     def removexattr(self, path, name):
-        self.meta_proxy.removexattr(path, name) # Meta Server
+        return self.meta_proxy.removexattr(path, name) # Meta Server
 
     def rename(self, old, new):
         # Data Servers
