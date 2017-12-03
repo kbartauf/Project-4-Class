@@ -49,7 +49,7 @@ class Memory():
 
     def rename(self, old, new):
         # Data Servers
-        self.meta_proxy.rename(old, new) # Meta Server
+        return self.meta_proxy.rename(old, new) # Meta Server
 
     def rmdir(self, path):
         # Data Servers
