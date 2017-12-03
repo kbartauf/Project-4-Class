@@ -77,6 +77,24 @@ class Memory(LoggingMixIn, Operations):
     def write(self, path, data, offset, fh):
          # Data Servers
         # Meta Server
+    	p = self.traverse(path)
+        d, d1 = self.traverseparent(path, True)
+        if offset > p['st_size']:
+            d[d1] = [(d[d1][i] if i < len(d[d1]) else '').ljust(bsize, '\x00') for i in range(offset//bsize)] \
+                    + [(d[d1][offset/bsize][:offset % bsize] if offset//bsize < len(d[d1]) else '').ljust(offset % bsize, '\x00')]
+        size = len(data)
+        sdata = [data[:bsize - (offset % bsize)]] + [data[i:i+bsize] for i in range(bsize - (offset % bsize), size, bsize)]
+        blks = range(offset//bsize, (offset + size - 1)//bsize + 1)
+        mod = blks[:]
+        mod[0] = (d[d1][blks[0]][:offset % bsize] if blks[0] < len(d[d1]) else '').ljust(offset % bsize, '\x00') + sdata[0]
+        if len(mod[0]) != bsize and blks[0] < len(d[d1]):
+            mod[0] = mod[0] + d[d1][blks[0]][len(mod[0]):]
+        mod[1:-1] = sdata[1:-1]
+        if len(blks) > 1:
+            mod[-1] = sdata[-1] + (d[d1][blks[-1]][len(sdata[-1]):] if blks[-1] < len(d[d1]) else '')
+        d[d1][blks[0]:blks[-1] + 1] = mod
+        p['st_size']= offset + size if offset + size > p['st_size'] else p['st_size']
+        return size
 
 def main():
 

@@ -2,11 +2,8 @@
 server = {}    
 numServers = 4
 
-#working
-def hash(fname,numServers):
-    val = 0
-    for pos in range(len(fname)):
-        val = val + ord(fname[pos])
+def startHash(fname):
+    val = hash(fname)
     startVal = val%numServers
     return startVal  
 
@@ -19,10 +16,8 @@ def distributePacket(startVal, fname):
             put(fname[pos+i], (startVal+pos+i)%numServers)
     return
 
-
-#working
 def resolveBlkNum(fname,BlkNum):
-    val = hash(fname, numServers)
+    val = startHash(fname)
     serverNum = (val+BlkNum)%numServers
     return serverNum
 
@@ -31,9 +26,10 @@ def put(blk, serverNum):
         
 def main():
     name = 'ABC.txt'
-    start = hash(name,numServers)
+    start = startHash(name)
     #distributePacket(start, 'ABC,txt')
-    serverNum = resolveBlkNum('ABC.txt', 14) 
+    serverNum = resolveBlkNum('ABC.txt', 15) 
+    print(start)
     print(serverNum)   
     return
     
