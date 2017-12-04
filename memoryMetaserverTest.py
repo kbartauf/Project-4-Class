@@ -53,32 +53,35 @@ class Memory():
 
     def rmdir(self, path):
         # Data Servers
-        self.meta_proxy.rmdir(path) # Meta Server
+        return self.meta_proxy.rmdir(path) # Meta Server
 
     def setxattr(self, path, name, value, options, position=0):
-        self.meta_proxy.setxattr(path, name, value) # Meta Server
+        return self.meta_proxy.setxattr(path, name, value) # Meta Server
 
     def statfs(self, path):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
 
     def symlink(self, target, source):
         # Data Servers
-        self.meta_proxy.symlink(target, len(source)) # Meta Server
+        return self.meta_proxy.symlink(target, len(source)) # Meta Server
 
     def truncate(self, path, length, fh=None):
         # Data Servers
-        self.meta_proxy.truncate(path, length) # Meta Server
+        return self.meta_proxy.truncate(path, length) # Meta Server
 
     def unlink(self, path):
         # Data Servers
-        self.meta_proxy.unlink(path) # Meta Server
+        return self.meta_proxy.unlink(path) # Meta Server
 
     def utimens(self, path, times=None):
-        self.meta_proxy.utimens(path, times) # Meta Server
+        if times :
+            return self.meta_proxy.utimens(path, times) # Meta Server
+        else :
+            return self.meta_proxy.utimens(path)
 
     def write(self, path, data, offset, fh):
         # Data Servers
-        self.meta_proxy.write(path, len(data), offset) # Meta Server
+        return self.meta_proxy.write(path, len(data), offset) # Meta Server
 
 
 def main():
@@ -112,7 +115,7 @@ def main():
     # Test GetAttr / Utimens / chmod
     print(test.getattr("/sub1_folder0/test.txt"))
     test.chmod("/sub1_folder0/test.txt", 37)
-    test.utimens("/sub1_folder0/test.txt", None)
+    test.utimens("/sub1_folder0/test.txt")
     print(test.getattr("/sub1_folder0/test.txt"))
 
     # Test ListxAttr / chown / RemovexAttr(ON A CONFIRMED EXISTING ELEMENT)
@@ -124,26 +127,39 @@ def main():
     print(test.listxattr("/sub1_folder0/"))
 
     # RemoveXAttr(On A Non Existing Element)
+    test.removexattr("/sub1_folder0/", 'st_uid')
+    test.setxattr("/sub1_folder0/", 'st_ctime', 30, None)
+    print(test.getxattr("/sub1_folder0/", 'st_uid'))
 
-    # Test SetXAttr
-    #test.setxattr(path, name, value, None)
-
-    # Test Rename / Rmdir / Symlink
+    # Test Rename / Rmdir[fail] / Symlink
     print(test.readdir(None, None))
     test.rmdir("/sub1_folder0/sub2_folder0/sub3_folder1/")
     #test.rename()
     #test.symlink(target, source)
     print(test.readdir(None, None))
 
-    # Test Unlink
-    #test.unlink(path)
+    # Test Unlink / Rmdir
+    test.unlink("/sub1_folder0/sub2_folder0/sub3_folder1/copy.txt")
+    print test.rmdir("/sub1_folder0/sub2_folder0/sub3_folder1/")
+    print(test.readdir(None, None))
 
     # Test Open
     #test.open(None, None)
 
     # Test Length
-    #test.truncate(path, length)
-    #test.write(path, data, offset, None)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+    test.truncate("/sub1_folder0/test.txt", 20)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+    test.write("/sub1_folder0/test.txt", "test", 19, None)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+    test.write("/sub1_folder0/test.txt", "test", 0, None)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+    test.write("/sub1_folder0/test.txt", "test", 30, None)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+    test.truncate("/sub1_folder0/test.txt", 5)
+    print(test.getxattr("/sub1_folder0/test.txt", 'st_size'))
+
+
 
     return
 
