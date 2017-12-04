@@ -76,7 +76,7 @@ class Memory(LoggingMixIn, Operations):
 
     def write(self, path, data, offset, fh):
          # Data Servers
-        # Meta Server
+        # Meta Serverp4-
     	p = self.traverse(path)
         d, d1 = self.traverseparent(path, True)
         if offset > p['st_size']:
