@@ -25,12 +25,20 @@ def put(blk, serverNum):
     server[serverNum] = [blk]
         
 def main():
-    name = 'ABC.txt'
-    start = startHash(name)
-    #distributePacket(start, 'ABC,txt')
-    serverNum = resolveBlkNum('ABC.txt', 15) 
-    print(start)
-    print(serverNum)   
+    '''
+        name = 'ABC.txt'
+        start = startHash(name)
+        #distributePacket(start, 'ABC,txt')
+        serverNum = resolveBlkNum('ABC.txt', 15) 
+        print(start)
+        print(serverNum)   
+    '''
+    a = 150
+    b = 8
+    a = float(a)
+    b = float(b)
+    c = a/b
+    print(c)    
     return
     
 

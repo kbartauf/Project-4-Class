@@ -61,14 +61,14 @@ def main():
     server.register_introspection_functions()
 
     # Register Functions
-    server.register_function(,"mkdir")
+    server.register_function(merp.mklist,"mkdir")
     server.register_function(merp.get,"read")
-    server.register_function(,"readlink")
-    server.register_function(,"rename")
+    server.register_function(merp.readlink,"readlink")
+    server.register_function(merp.rename,"rename")
     server.register_function(,"rmdir")
     server.register_function(,"symlink")
-    server.register_function(,"truncate")
-    server.register_function(,"unlink")
+    server.register_function(merp.truncateData,"truncate")
+    server.register_function(merp.unlink,"unlink")
     server.register_function(,"write")
 
     # Run Server's Main Loop
