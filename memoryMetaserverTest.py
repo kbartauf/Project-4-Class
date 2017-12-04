@@ -130,6 +130,8 @@ def main():
     test.removexattr("/sub1_folder0/", 'st_uid')
     test.setxattr("/sub1_folder0/", 'st_ctime', 30, None)
     print(test.getxattr("/sub1_folder0/", 'st_uid'))
+    print(test.getattr("/sub1_folder0/"))
+    return
 
     # Test Rename / Rmdir[fail] / Symlink
     print(test.readdir(None, None))

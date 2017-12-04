@@ -304,8 +304,12 @@ class metaserver():
                 attrs = parent_node.files_specs[filename]#.get('attrs', {})
             else :
                 return _FAILURE
+        
+        try :
+            del attrs[name]
+        except KeyError :
+            return _FAILURE
 
-        del attrs[name]
         return _SUCCESS
 
 
@@ -404,13 +408,13 @@ class metaserver():
         if filename[-1] == '/' :
             # Directory
             if filename in parent_node.sub_directories :
-                attrs = parent_node.sub_directories[filename].directory_spec.setdefault('attrs', {})
+                attrs = parent_node.sub_directories[filename].directory_spec#.setdefault('attrs', {})
             else :
                 return _FAILURE
         else :
             # File
             if filename in parent_node.files_specs :
-                attrs = parent_node.files_specs[filename].setdefault('attrs', {})
+                attrs = parent_node.files_specs[filename]#.setdefault('attrs', {})
             else :
                 return _FAILURE
 
