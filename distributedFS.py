@@ -76,8 +76,8 @@ class Memory():#LoggingMixIn, Operations):
             self.data_server_array.rename(old, new)
         # Meta Server
 
-    def resolveBlkNum(fname,BlkNum):
-        val = startHash(fname)
+    def resolveBlkNum(path,BlkNum):
+        val = startHash(path)
         serverNum = (val+BlkNum)%numServers
         return serverNum
 
@@ -88,8 +88,8 @@ class Memory():#LoggingMixIn, Operations):
         # Ignore Options
         # Meta Server
 
-    def startHash(fname):
-        val = hash(fname)
+    def startHash(path):
+        val = hash(path)
         startVal = val%numServers
         return startVal 
 
@@ -109,10 +109,10 @@ class Memory():#LoggingMixIn, Operations):
         for i in data_server_array:
             self.data_server_array[(startServer+i)%numServers].truncateData(floor(keep))
         if (keep-floor(keep))) > 0
-            trunc = data_server_arrray[resolveBlkNum(path,floor(keep))].get(path,floor(keep)/numServers)
+            trunc = self.data_server_arrray[resolveBlkNum(path,floor(keep))].get(path,floor(keep)/numServers)
             for i in len((8-((keep-floor(keep))*8)):
                 trunc[7-i] = None
-                data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
+                self.data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
             
         # Meta Server
 
@@ -127,8 +127,46 @@ class Memory():#LoggingMixIn, Operations):
         # Meta Server
 
     def write(self, path, data, offset, fh):
-         # Data Servers
-
+        # Data Servers
+        serverStart = startHash(path)
+        filesize = float(self.meta_proxy.getxattr(path,'st_size'))
+        fileLen = filesize/8
+        block = offset/bsize
+        pos = offset%bsize
+        if (offset > filesize):
+            for i in range(fileLen+1:block-1):
+                self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[('/x00'*8)])
+            i += 1
+            self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[('/x00'*pos)+data[:(bsize-pos)])
+            currentPOS = bsize-pos
+   
+            while currentPOS <= len(data):          
+                i +=1
+                self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[currentPOS:(currentPOS+8)]
+                currentPOS += bsize
+                if currentPOS+bsize > len(data):
+                    currentPOS -= bsize
+                    i += 1
+                    self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS))]
+                
+        else:
+           if (offset%bsize) != 0:
+               self.data_server_array[resolve(path,offset%bsize)].putOverwrite(path,data[:(bsize-pos)]
+           while currentPOS <= len(data):          
+                i +=1
+                self.data_server_array[i+resolveBlkNum(path,fileLen)].putOverwrite(path,[data[currentPOS:(currentPOS+8)]
+                currentPOS += bsize
+                if currentPOS+bsize > len(data):
+                    currentPOS -= bsize
+                    if len(offset)+len(data) <= filesize:
+                        i += 1
+                        temp = self.data_server_array[i+resolveBlkNum(path,fileLen)].get(path,(offset+len(data)-1)/bsize))
+                       temp =  temp[:(len(data)-currentPOS)] + data[currentPOS:]
+                    else:
+                    i += 1
+                    self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS))] 
+              
+                    
 def main():
     numServers = len(sys.argv)-2
     bsize = 8
