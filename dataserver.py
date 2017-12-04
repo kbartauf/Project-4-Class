@@ -5,10 +5,8 @@ from collections import defaultdict
 
 class dataserver():
 
-    def __init__(self):
-        self.dataServerShelve = shelve.open("data store" + [serverNum])
-        self.files = {}
-        self.data = defaultdict(list)
+    def __init__(self, server_number_string):
+        self.dataServerShelve = shelve.open("data store " + server_number_string)
 
     # Retrieve something from the HT
     def get(self, key, blkNum):
@@ -16,14 +14,14 @@ class dataserver():
         rv = {}
         # If the key is in the data structure, return properly formated results
         key = key.data
-        if key in self.data:
+        if dataServerShelve.has_key(key) :
             rv = dataServerShelve[str(hash(path))][blkNum]
         return rv
 
-    def truncateData(lengthBlks):
-       temp = dataServerShelve[str(hash(path))]
-       temp = temp[:lengthBlks+1]
-       dataServerShelve[str(hash(path))] = temp 
+    def truncateData(self, lengthBlks):
+        temp = dataServerShelve[str(hash(path))]
+        temp = temp[:lengthBlks+1]
+        dataServerShelve[str(hash(path))] = temp 
 
     # Insert something into the HT
     def putAppend(self, key, value):
@@ -33,45 +31,41 @@ class dataserver():
             mklist(key)
             dataServerShelve[str(hash(path))].append(value)
 
-    def putOverwirte(self, key, value, blkNum):
-       temp = dataServerShelve[str(hash(path))]
-       temp[blkNum] = value
-       dataServerShelve[str(hash(path))] = temp        
+    def putOverwrite(self, key, value, blkNum):
+        temp = dataServerShelve[str(hash(path))]
+        temp[blkNum] = value
+        dataServerShelve[str(hash(path))] = temp        
 
-    def mklist(key):
+    def mklist(self, key):
         dataServerShelve[str(hash(key))] = []
         
-    def rename(keyold, keynew):
+    def rename(self, keyold, keynew):
         dataServerShelve[str(hash(keynew))] = dataServerShelve[str(hash(keyold))]
         del dataServerShelve[str(hash(keyold))]     
     
-    def unlink(key):
+    def unlink(self, key):
         del dataServerShelve[str(hash(key))]
-
-    def write():
 
 def main():
     if( len(sys.argv) < 6 )
-        print('usage: %s <int #dataservers> <at least (x4) mountpoints separated by spaces>' % argv[0])
+        print('usage: %s <int # of dataserver> <at least (x4) mountpoints separated by spaces>' % argv[0])
     iPortNumber = int(sys.argv[ int(sys.argv[1])+2 ])
 
     #Create test_class
-    merp = dataserver()
+    merp = dataserver( sys.argv[1] )
 
     # Create Server
     server = SimpleXMLRPCServer(("localhost", iPortNumber))
     server.register_introspection_functions()
 
     # Register Functions
-    server.register_function(merp.mklist,"mkdir")
-    server.register_function(merp.get,"read")
-    server.register_function(merp.readlink,"readlink")
-    server.register_function(merp.rename,"rename")
-    server.register_function(,"rmdir")
-    server.register_function(,"symlink")
+    server.register_function(merp.get,"get")
     server.register_function(merp.truncateData,"truncate")
+    server.register_function(merp.putAppend,"putAppend")
+    server.register_function(merp.putOverwrite,"putOverwrite")
+    server.register_function(merp.mklist,"mklist")
+    server.register_function(merp.rename,"rename")
     server.register_function(merp.unlink,"unlink")
-    server.register_function(,"write")
 
     # Run Server's Main Loop
     server.serve_forever()
