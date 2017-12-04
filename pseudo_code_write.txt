@@ -1,0 +1,55 @@
+def write(self, path, data, offset, fh):
+
+    if ( offset > Current File Length )
+        
+        # store null characters '\x00' from (block after current) in as many blocks up to the offset-1
+    
+        # store null characters + beginnig of data { '\x00' + data[: (BLOCKLENGHT- ((offset)%BLOCKLENGTH)) ]  }    
+               # Block  = offset/BLKSIZE
+               # Pos    = offset%BLKSIZE
+               # Data[:BLKSIZE - (Pos)]
+
+        # Middle Characters
+            # start = pos
+            # end = start+8
+        # Data[start:end] # Break this up into BLOCKSIZE character blocks
+        while end < len(data) :
+            # Add the blocks
+
+        # data[start:len(data)] + '/x00'*(BLOCKSIZE-(len(data)-start))
+            # store in last block
+
+
+
+
+
+
+    else : #offset is within current file length
+
+        if (offset% BLOCKSIZE) != 0  # Middle of Block   
+
+            # load the first block
+            # overwrite end portion
+                   # Block  = offset/BLKSIZE
+                   # Pos    = offset%BLKSIZE
+                   # Data[:BLKSIZE - (Pos)]
+            # block = block[:(Pos)] + Data[:BLKSIZE - (Pos)]        
+
+ 
+        # Overwrite blocks while end =< len(data)
+
+        
+
+        # Last block
+
+            # check if last block exists, (check length from metaserver before hand)
+    
+            # if exists        
+                # load block
+                # overwrite            
+                    # block = data[start:len(data)] + block[len(data)%BLOCKSIZE:]
+
+            # else, does not exist
+                # data[start:len(data)] + '/x00'*(BLOCKSIZE-(len(data)-start))
+                # store in last block
+
