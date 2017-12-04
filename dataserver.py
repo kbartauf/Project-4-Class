@@ -29,7 +29,7 @@ class dataserver():
     def putAppend(self, key, value):
         if dataServerShelve.has_key(key)
             dataServerShelve[str(hash(path))].append(value)
-        else
+        else:
             mklist(key)
             dataServerShelve[str(hash(path))].append(value)
 
@@ -41,12 +41,14 @@ class dataserver():
     def mklist(key):
         dataServerShelve[str(hash(key))] = []
         
-    def rename(keyold, keynew)
+    def rename(keyold, keynew):
         dataServerShelve[str(hash(keynew))] = dataServerShelve[str(hash(keyold))]
         del dataServerShelve[str(hash(keyold))]     
     
-    def unlink(key)
+    def unlink(key):
         del dataServerShelve[str(hash(key))]
+
+    def write():
 
 def main():
     if( len(sys.argv) < 6 )
