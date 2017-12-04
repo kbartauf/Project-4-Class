@@ -38,13 +38,18 @@ class metaserver():
 
     def getParentDirectory(self, path) :
         node = self.root
+
+        if path[0]=='/' :
+            path = path[1:]
         pathname = path
-        
+
+        h = 0        
         for i in range(0,len(path)-1):
-            if pathname[i] == '/' :
-                if pathname[:i+1] in node.sub_directories :
-                    node = node.sub_directories
-                    pathname = pathname[i+1:]
+            if path[i] == '/' :
+                pathname = path[h:i+1]
+                h = i+1
+                if pathname in node.sub_directories :
+                    node = node.sub_directories[pathname]
                 else :
                     return _FAILURE
         return node
@@ -134,7 +139,6 @@ class metaserver():
 
 
     def create(self, path, mode):
-
         parent_node = self.createParentDirectory(path)
         pathname = self.getName(path)
 
@@ -187,6 +191,7 @@ class metaserver():
 
 
     def getxattr(self, path, name):
+
         parent_node = self.getParentDirectory(path)
         filename = self.getName(path)
 
@@ -195,19 +200,19 @@ class metaserver():
         if filename[-1] == '/' :
             # Directory
             if filename in parent_node.sub_directories :
-                attrs = parent_node.sub_directories[filename].directory_spec.get('attrs', {})
+                attrs = parent_node.sub_directories[filename].directory_spec#.get('attrs', {})
             else :
                 return _FAILURE
         else :
             # File
             if filename in parent_node.files_specs :
-                attrs = parent_node.files_specs[filename].get('attrs', {})
+                attrs = parent_node.files_specs[filename]#.get('attrs', {})
             else :
                 return _FAILURE
 
         if name in attrs :
             return attrs[name]
-        
+       
         return _FAILURE
 
         
@@ -220,13 +225,13 @@ class metaserver():
         if filename[-1] == '/' :
             # Directory
             if filename in parent_node.sub_directories :
-                attrs = parent_node.sub_directories[filename].directory_spec.get('attrs', {})
+                attrs = parent_node.sub_directories[filename].directory_spec#.get('attrs', {})
             else :
                 return _FAILURE
         else :
             # File
             if filename in parent_node.files_specs :
-                attrs = parent_node.files_specs[filename].get('attrs', {})
+                attrs = parent_node.files_specs[filename]#.get('attrs', {})
             else :
                 return _FAILURE
 
@@ -290,13 +295,13 @@ class metaserver():
         if filename[-1] == '/' :
             # Directory
             if filename in parent_node.sub_directories :
-                attrs = parent_node.sub_directories[filename].directory_spec.get('attrs', {})
+                attrs = parent_node.sub_directories[filename].directory_spec#.get('attrs', {})
             else :
                 return _FAILURE
         else :
             # File
             if filename in parent_node.files_specs :
-                attrs = parent_node.files_specs[filename].get('attrs', {})
+                attrs = parent_node.files_specs[filename]#.get('attrs', {})
             else :
                 return _FAILURE
 
@@ -363,34 +368,29 @@ class metaserver():
 
     def rmdir(self, path):
         # Only Remove Empty Directories
+        if path[0] == '/' :
+            path = path[1:]
 
         parent_node = self.root
         current_node = self.root
         current_name = path
 
         # Find Directory, Subdirectories, and Files
-        element_start = 0
+        h = 0
         for i in range(0,len(path)) :
             if path[i] == '/' :
-                if path[element_start:i+1] in current_node.sub_directories :
+                if path[h:i+1] in current_node.sub_directories :
                     parent_node = current_node
-                    current_node = current_node.sub_directories[path[element_start:i+1]]
-                    current_name = path[element_start:]
-                    element_start = i+2
+                    current_node = current_node.sub_directories[path[h:i+1]]
+                    current_name = path[h:]
+                    h = i+1
                 else :
                     return _FAILURE
 
-        # Delete Directory
-        if path[-1] == '/' :
-            if len(current_node.sub_directories) == 0 :
-                if len(current_node.files_specs) == 0 :
-                    del parent_node.sub_directories[current_name]
-                    return _SUCCESS
-
-        # Delete File (In Retrospect, This is Obviously Unnecessary)
-        #if current_name in current_node.files_specs :
-        #    del current_node.files_specs[current_name]
-        #    return _SUCCESS
+        if len(current_node.sub_directories) == 0 :
+            if len(current_node.files_specs) == 0 :
+                del parent_node.sub_directories[current_name]
+                return _SUCCESS
 
         return _FAILURE
                 
@@ -439,23 +439,29 @@ class metaserver():
         if filename not in parent_node.files_specs :
             return _FAILURE
 
-        parent_node.files_specs[filename]['st_size'] = length        
+        parent_node.files_specs[filename]['st_size'] = length
+        return _SUCCESS
 
 
     def unlink(self, path):
+
+        if path[0] == '/' :
+            path = path[1:]
+
         parent_node = self.root
         current_node = self.root
         current_name = path
 
+
         # Find Directory, Subdirectories, and Files
-        element_start = 0
-        for i in range(0,len(path)) :
+        h = 0
+        for i in range(0,len(path)-1) :
             if path[i] == '/' :
-                if path[element_start:i+1] in current_node.sub_directories :
+                if path[h:i+1] in current_node.sub_directories :
                     parent_node = current_node
-                    current_node = current_node.sub_directories[path[element_start:i+1]]
-                    current_name = path[element_start:]
-                    element_start = i+2
+                    current_node = current_node.sub_directories[path[h:i+1]]
+                    h = i+1
+                    current_name = path[h:]
                 else :
                     return _FAILURE
 
@@ -508,7 +514,8 @@ class metaserver():
         return _FAILURE
 
 
-    def utimens(self, path, times):
+    def utimens(self, path, times=None):
+
         parent_node = self.getParentDirectory(path)
         filename = self.getName(path)
 
