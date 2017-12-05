@@ -7,8 +7,8 @@ _FAILURE = 1
 class Memory():#LoggingMixIn, Operations):
 
     def __init__(self, iMetaPort, iaDataPorts):
-        self.meta_proxy = xmlrpclib.ServerProxy("http://localhost:"+str(iMetaport)+"/")
-        for i in len(iaDataPorts) :
+        self.meta_proxy = xmlrpclib.ServerProxy("http://localhost:"+str(iMetaPort)+"/")
+        for i in range(len(iaDataPorts)) :
             self.data_proxy_array[i] = xmlrpclib.ServerProxy("http://localhost:"+str(iaDataPorts[i])+"/")
 
     def chmod(self, path, mode):
