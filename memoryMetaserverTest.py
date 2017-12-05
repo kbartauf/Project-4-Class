@@ -87,7 +87,7 @@ class Memory():
 def main():
 
     if( len(sys.argv) < 3 ) :
-        print('usage: %s <metaserver port> <dataserver ports)' % argv[0])
+        print('usage: %s <metaserver port> <dataserver ports)' % sys.argv[0])
         return
 
     iDataPorts = []
@@ -98,6 +98,17 @@ def main():
     mode = 16
 
     print(test.readdir(None, None))
+
+    test.create("test.txt", 0)
+    test.write("test.txt", "Hello World", 0, 0)
+    test.readlink("test.txt")
+
+    test.create("/dir1/test.txt", 0)
+    test.write("/dir1/test.txt", "Hello World", 0, 0)
+    test.readlink("/dir1/test.txt")
+
+    print(test.readdir(None, None))
+    return
 
     # Test Making Directories (sub4_folder0)
     test.mkdir("/sub1_folder0/", mode)

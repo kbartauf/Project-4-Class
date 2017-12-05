@@ -76,6 +76,7 @@ class metaserver():
 
     def getName(self, path) :
         
+        pathname = path
         for i in range(0,len(path)-1) :
             if path[i] == '/' :
                 pathname = path[i+1:]
@@ -275,10 +276,10 @@ class metaserver():
             working_string = string_stack.pop()
 
             for key in working_node.files_specs :
-                all_file_directory_paths.append(working_string+key)
+                all_file_directory_paths.append("/"+working_string+key)
             
             for key in working_node.sub_directories :
-                all_file_directory_paths.append(working_string+key)
+                all_file_directory_paths.append("/"+working_string+key)
                 stack.append(working_node.sub_directories[key])
                 string_stack.append(working_string+key)
 
@@ -547,6 +548,8 @@ class metaserver():
 
 
     def write(self, path, length, offset):
+        # Possible Error!, Does Not Work Unless create() Already Run
+
         parent_node = self.getParentDirectory(path)
         filename = self.getName(path)
 
