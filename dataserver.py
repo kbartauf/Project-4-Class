@@ -1,6 +1,8 @@
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 import shelve
 from collections import defaultdict
+import sys
+import xmlrpclib
 
 
 class dataserver():
@@ -25,7 +27,7 @@ class dataserver():
 
     # Insert something into the HT
     def putAppend(self, key, value):
-        if dataServerShelve.has_key(key)
+        if dataServerShelve.has_key(key):
             dataServerShelve[str(hash(path))].append(value)
         else:
             mklist(key)
@@ -47,8 +49,10 @@ class dataserver():
         del dataServerShelve[str(hash(key))]
 
 def main():
-    if( len(sys.argv) < 6 )
-        print('usage: %s <int # of dataserver> <at least (x4) mountpoints separated by spaces>' % argv[0])
+    if( len(sys.argv) < 6 ):
+        print('usage: %s <int # of dataserver> <at least (x4) mountpoints separated by spaces>')# % argv[0])
+        return
+    
     iPortNumber = int(sys.argv[ int(sys.argv[1])+2 ])
 
     #Create test_class

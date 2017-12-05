@@ -1,4 +1,5 @@
 import xmlrpclib
+import sys
 
 _SUCCESS = 0
 _FAILURE = 1
@@ -38,16 +39,16 @@ class Memory():#LoggingMixIn, Operations):
         return self.meta_proxy.listxattr(path) # Meta Server
 
     def mkdir(self, path, mode):
-        self.meta_proxy.mkdir(path, mode) # Meta Server
+        return self.meta_proxy.mkdir(path, mode) # Meta Server
 
     def open(self, path, flags):
         return self.meta_proxy.open() # Meta Server
 
     def read(self, path, size, offset, fh):
-         # Data Servers
+         return # Data Servers
 
     def readdir(self, path, fh):
-        # Meta Server
+        return self.meta_proxy.readdir() # Meta Server
 
     def readlink(self, path):
         # Data Servers
@@ -57,18 +58,18 @@ class Memory():#LoggingMixIn, Operations):
         fileLen = filesize/8.0
         numServers = float(numServers)
         for i in fileLen/numServers:
-            for j in data_server_array
+            for j in data_server_array:
                 data[k] = self.data_server_array[(startServer+j)%numServers].get(path,i)
                 k += 1
         if fileLen/numServers - floor(fileLen/numServers) > 0:
-            for n in len(((fileLen/numServers)-floor(fileLen/numServerss))*numServers))
-                for j in data_server_array
+            for n in range(len(((fileLen/numServers)-floor(fileLen/numServerss))*numServers)):
+                for j in data_server_array:
                     data[k] = self.data_server_array[(startServer+j)%numServers].get(path,i)
                     k += 1
         return data
 
     def removexattr(self, path, name):
-        # Meta Server
+        return # Meta Server
 
     def rename(self, old, new):
         # Data Servers
@@ -82,11 +83,11 @@ class Memory():#LoggingMixIn, Operations):
         return serverNum
 
     def rmdir(self, path):
-        # Meta Server
+        return # Meta Server
 
     def setxattr(self, path, name, value, options, position=0):
         # Ignore Options
-        # Meta Server
+         return # Meta Server
 
     def startHash(path):
         val = hash(path)
@@ -97,20 +98,20 @@ class Memory():#LoggingMixIn, Operations):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
 
     def symlink(self, target, source):
-        # Data Servers
+        return # Data Servers
         # Meta Server
 
     def truncate(self, path, length, fh=None):
         # Data Servers
         startServer = startHash(path)
         length = float(length)
-        bsize = float(bsize
+        bsize = float(bsize)
         keep = length/bsize
         for i in data_server_array:
             self.data_server_array[(startServer+i)%numServers].truncateData(floor(keep))
-        if (keep-floor(keep))) > 0
+        if (keep-floor(keep)) > 0:
             trunc = self.data_server_arrray[resolveBlkNum(path,floor(keep))].get(path,floor(keep)/numServers)
-            for i in len((8-((keep-floor(keep))*8)):
+            for i in range(len((8-((keep-floor(keep))*8)))):
                 trunc[7-i] = None
                 self.data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
             
@@ -124,7 +125,7 @@ class Memory():#LoggingMixIn, Operations):
         # Meta Server
 
     def utimens(self, path, times=None):
-        # Meta Server
+        return # Meta Server
 
     def write(self, path, data, offset, fh):
         # Data Servers
@@ -134,37 +135,37 @@ class Memory():#LoggingMixIn, Operations):
         block = offset/bsize
         pos = offset%bsize
         if (offset > filesize):
-            for i in range(fileLen+1:block-1):
+            for i in range(fileLen+1,block-1):
                 self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[('/x00'*8)])
             i += 1
-            self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[('/x00'*pos)+data[:(bsize-pos)])
+            self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[('/x00'*pos)+data[:(bsize-pos)]])
             currentPOS = bsize-pos
    
             while currentPOS <= len(data):          
                 i +=1
-                self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[currentPOS:(currentPOS+8)]
+                self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[currentPOS:(currentPOS+8)]])
                 currentPOS += bsize
                 if currentPOS+bsize > len(data):
                     currentPOS -= bsize
                     i += 1
-                    self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS))]
+                    self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS)))])
                 
         else:
            if (offset%bsize) != 0:
-               self.data_server_array[resolve(path,offset%bsize)].putOverwrite(path,data[:(bsize-pos)]
+               self.data_server_array[resolve(path,offset%bsize)].putOverwrite(path,data[:(bsize-pos)])
            while currentPOS <= len(data):          
                 i +=1
-                self.data_server_array[i+resolveBlkNum(path,fileLen)].putOverwrite(path,[data[currentPOS:(currentPOS+8)]
+                self.data_server_array[i+resolveBlkNum(path,fileLen)].putOverwrite(path,[data[currentPOS:(currentPOS+8)]])
                 currentPOS += bsize
                 if currentPOS+bsize > len(data):
                     currentPOS -= bsize
                     if len(offset)+len(data) <= filesize:
                         i += 1
-                        temp = self.data_server_array[i+resolveBlkNum(path,fileLen)].get(path,(offset+len(data)-1)/bsize))
-                       temp =  temp[:(len(data)-currentPOS)] + data[currentPOS:]
+                        temp = self.data_server_array[i+resolveBlkNum(path,fileLen)].get(path,((offset+len(data)-1)/bsize))
+                        temp =  temp[:(len(data)-currentPOS)] + data[currentPOS:]
                     else:
-                    i += 1
-                    self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS))] 
+                        i += 1
+                        self.data_server_array[i+resolveBlkNum(path,fileLen)].putAppend(path,[data[(bsize-currentPOS):]+('/x00'*(bsize-(len(data)-currentPOS)))]) 
               
                     
 def main():
@@ -180,7 +181,10 @@ def main():
 
     test = Memory( int(sys.argv[1]), iDataPorts)
 
-    test.    
+    test.mkdir("/sub1_folder0/", mode)
+    test.mkdir("/sub1_folder0/sub2_folder0/sub3_folder0/sub4_folder0", mode)
+    test.mkdir("/sub1_folder0/sub2_folder0/sub3_folder1", mode)
+    print(test.readdir(None,None))    
     
 
     return
