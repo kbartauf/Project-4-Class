@@ -55,8 +55,7 @@ class Memory():#LoggingMixIn, Operations):
 
     def create(self, path, mode):
         self.meta_proxy.create(path, mode) # Meta Server
-        # [Data Server, Create Empty Lists]
-        #return self.meta_proxy.open() # Meta Server
+        return self.meta_proxy.open() # Meta Server
 
     def getattr(self, path, fh=None):
         attrs = self.meta_proxy.getattr(path)
@@ -79,14 +78,36 @@ class Memory():#LoggingMixIn, Operations):
     def open(self, path, flags):
         return self.meta_proxy.open() # Meta Server
 
-#    def read(self, path, size, offset, fh):
+    def read(self, path, size, offset, fh):
         # Data Servers
+        filesize = self.meta_proxy.getxattr(path,'st_size')
+        data = ""
+
+        number_blocks_dataserver = (filesize-1)/_BLOCKSIZE
+        start_block = offset/_BLOCKSIZE
+        possible_end_block = (offset+size-1)/_BLOCKSIZE
+
+        if possible_end_block < number_blocks_dataserver :
+            for i in range(start_block, possible_end_block+1) :
+                data += self.readBlock(serverStart, i, path)
+            data = data[(offset%_BLOCKSIZE):((size)+(offset%_BLOCKSIZE))]
+            return data
+
+        # if possible_end_block >= number_blocks_dataserver :
+        else :
+            for i in range(start_block, number_blocks_dataserver) :
+                data += self.readBlock(serverStart, i, path)
+            data = data[offset%_BLOCKSIZE:]
+            return data
+
+        return data
+
 
     def readdir(self, path, fh):
         return self.meta_proxy.readdir() # Meta Server
-        # Add Slashes Probably
 
     def readlink(self, path):
+        # Data
         filesize = self.meta_proxy.getxattr(path,'st_size')
         if filesize == 0 :
             return ""
@@ -112,13 +133,11 @@ class Memory():#LoggingMixIn, Operations):
             pass        # Should return ENOATTR
         return
 
-#    def rename(self, old, new):
-  #      for i in data_server_array:
- #           self.data_server_array.rename(old, new) # Data Servers
-#
- #       self.meta_proxy.rename(old, new) # Meta
-#
-#        return
+    def rename(self, old, new):
+        for proxy in self.data_proxy_array:
+            proxy.rename(old, new) # Data Servers
+        self.meta_proxy.rename(old, new) # Meta
+        return
 
     def rmdir(self, path):
         self.meta_proxy.rmdir(path) # Meta Server
@@ -128,11 +147,26 @@ class Memory():#LoggingMixIn, Operations):
 
     def statfs(self, path):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
-    """
-#    def symlink(self, target, source):
-        # Data Servers
+
+    def symlink(self, target, source):
+
+        self.unlink(target) # First, Delete File If Already Existing
+
+        # Data Servers, Add All Blocks
+        number_blocks = len(source)/8
+        for i in range(0,number_blocks-1) :
+            appendBlock(block_start,i,target,source[(8*i):(8*(i+1))])
+
+        final_block = number_blocks-1
+        appendBlock(    block_start,
+                        final_block,
+                        target,
+                        ( (source[(8*final_block):])+("/x00"*(_BLOCKSIZE-(final_block%_BLOCKSIZE))) )
+        )
+
         self.meta_proxy.symlink(target, len(source)) # Meta Server
 
+    """
 #    def truncate(self, path, length, fh=None):
         self.meta_proxy.truncate(path, length) # Meta Server
 
@@ -148,14 +182,13 @@ class Memory():#LoggingMixIn, Operations):
             for i in len((_BLOCKSIZE-((keep-floor(keep))*_BLOCKSIZE)):
                 trunc[7-i] = None
                 self.data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
+"""
 
-#    def unlink(self, path):
+    def unlink(self, path):
         self.meta_proxy.unlink(path) # Meta Server
         # Data Servers
-        startServer = self.startHash(path)
-        #for i in data_proxy_array:
-        #    self.data_proxy_array[(startServer+i)%numServers].unlink(path)
-    """
+        for proxy in self.data_proxy_array : # Delete Existing File First, Or Should It Throw an Error?
+            proxy.unlink(target)
 
     def utimens(self, path, times=None):
         if times :

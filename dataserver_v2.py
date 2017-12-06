@@ -90,6 +90,8 @@ class dataserver():
 
         
     def rename(self, keyold, keynew):
+    # !!! Will Give Errors, As Block Start Is Different With Different Hash Values
+
         hashkeyold = str(hash(keyold))
         hashkeynew = str(hash(keynew))
         d = shelve.open(self.shelveString)
@@ -118,11 +120,15 @@ class dataserver():
         hashkey = str(hash(key))
         d = shelve.open(self.shelveString)
 
-        del d[hashkey]
-
-        d.close()
-        print("_SUCCESS")
-        return _SUCCESS
+        if d.has_key(hashkey) :
+            del d[hashkey]
+            d.close()
+            print("_SUCCESS")
+            return _SUCCESS
+        else :
+            d.close()
+            print("_FAILURE")
+            return _FAILURE
 
 
 def main():
