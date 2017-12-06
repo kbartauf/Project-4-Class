@@ -38,7 +38,7 @@ class dataserver():
         else :
             d.close()
             print("get _FAILURE")
-            return Binary(_FAILURE) #Binary
+            return Binary("") #Binary
 
 
     def truncateData(self, path, numBlks):

@@ -197,12 +197,12 @@ class Memory():#LoggingMixIn, Operations):
         data = ""
 
         for i in range(0,number_blocks) :
-            data += self.readBlock(serverStart, i, path)
+            data += self.readRepair(serverStart, i, path)
 
         if (filesize%_BLOCKSIZE) == 0 :
-            data += self.readBlock(serverStart, number_blocks, path)
+            data += self.readRepair(serverStart, number_blocks, path)
         else :
-            data += (self.readBlock(serverStart, number_blocks, path))[:(filesize%_BLOCKSIZE)]
+            data += (self.readRepair(serverStart, number_blocks, path))[:(filesize%_BLOCKSIZE)]
 
         return data
 
@@ -307,6 +307,7 @@ class Memory():#LoggingMixIn, Operations):
 
     def write(self, path, data, offset, fh):
 
+        self.readlink(path) #Read Repair
 
         # Data Servers
         pathname = path
@@ -326,15 +327,15 @@ class Memory():#LoggingMixIn, Operations):
         for serverStart in [serverStart0,serverStart1,serverStart2]: #,(serverStart0+1),(serverStart0+2)] :
             path = pathname + str(serverStart)
 
-            print("serverStart= "+str(serverStart))
+            #print("serverStart= "+str(serverStart))
 
-            print("blocks_existing= "+str(blocks_existing)+"<="+"block_offset_start= "+str(block_offset_start))
+            #print("blocks_existing= "+str(blocks_existing)+"<="+"block_offset_start= "+str(block_offset_start))
             # If Block # Offset is Past Current Blocks Existing, Need to Add Null Characters Blocks
             if( blocks_existing <= block_offset_start ) :
 
                 # Add Empty Null Character Blocks Up To, But Not Including, Block_Offset_Start
                 for i in range(blocks_existing, block_offset_start):
-                    print("i= "+str(i)+" for adding empty null character blocks")
+                    #print("i= "+str(i)+" for adding empty null character blocks")
                     self.appendBlock( serverStart, i, path, ('\x00'*_BLOCKSIZE) )
 
                 # Add Character Block Starting At Offset
@@ -342,16 +343,16 @@ class Memory():#LoggingMixIn, Operations):
                 end_pos = _BLOCKSIZE-(offset%_BLOCKSIZE)
                 
                 # Special Case When (len(data)) is Less Than What Can Be Written
-                print("special case")
+                #print("special case")
                 if end_pos >= len(data) :
                     self.appendBlock( serverStart, block_offset_start, path,
                         (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:len(data)]+("\x00"*(end_pos-len(data))))
                     )
-                    print("break_1")
-                    break
+                    # print("continue_1")
+                    continue
 
                 # Else, Add As Normal
-                print("append block start")
+                #print("append block start")
                 self.appendBlock( serverStart, block_offset_start, path, (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:end_pos]) )
                 start_pos = end_pos
                 end_pos += _BLOCKSIZE
@@ -359,26 +360,26 @@ class Memory():#LoggingMixIn, Operations):
 
                 # EG: if end_pos is 10, and len(data) is 10, Does work!
                 while end_pos <= len(data) :
-                    print("end_pos= "+str(end_pos)+" continued appending")
+                    #print("end_pos= "+str(end_pos)+" continued appending")
                     self.appendBlock( serverStart, current_block_number, path, data[start_pos:end_pos] )
                     start_pos += _BLOCKSIZE
                     end_pos += _BLOCKSIZE
                     current_block_number += 1
 
                 # Add Final Block w/ Null Characters
-                print("add final block maybe")
+                # print("add final block maybe")
                 if start_pos == len(data) :
                     # If start_pos Is Exactly Equal To The Amount of Existing Data, End
-                    print("break_2")
-                    break
+                    #print("continue_2")
+                    continue
                 else :
                     self.appendBlock(   serverStart, 
                                         current_block_number, 
                                         path, 
                                         ( data[start_pos:len(data)]+((_BLOCKSIZE-(len(data)-start_pos))*"\x00") )
                     )
-                    print("break_3")
-                    break
+                    #print("continue_3")
+                    continue
 
 
             # If Offset Starts Within Current Existing Block
@@ -397,8 +398,8 @@ class Memory():#LoggingMixIn, Operations):
                         temp_string = self.readBlock( serverStart, block_offset_start, path )
                         temp_string = temp_string[:start_pos_inBlock] + data[:len(data)] + temp_string[start_pos_inBlock+len(data):]
                         self.overwriteBlock( serverStart, block_offset_start, path, temp_string)
-                        print("break_4")
-                        break
+                        #print("continue_4")
+                        continue
 
                     temp_string = self.readBlock( serverStart, block_offset_start, path )
                     temp_string = temp_string[:start_pos_inBlock] + data[:end_pos_inData]
@@ -415,7 +416,7 @@ class Memory():#LoggingMixIn, Operations):
                 # Overwrite/Append Block
                 # Overwrite
                 while current_block < blocks_existing :
-                    print("Current_block="+str(current_block)+" < Blocks_existing="+str(blocks_existing))
+                    #print("Current_block="+str(current_block)+" < Blocks_existing="+str(blocks_existing))
                     if end_pos_inData <= len(data) :
                         self.overwriteBlock( serverStart, current_block, path, data[start_pos_inData:end_pos_inData] )
                         start_pos_inData += _BLOCKSIZE
@@ -425,13 +426,15 @@ class Memory():#LoggingMixIn, Operations):
                     else :
                         # Deal W/ Uneven Final Block, And End
                         if start_pos_inData >= len(data) :
-                            print("break_5")
+                            #print("break_5")
                             break
                         temp_string = self.readBlock(serverStart, current_block, path)
                         temp_string = data[(start_pos_inData):(len(data))] + temp_string[(len(data)-start_pos_inData):]
                         self.overwriteBlock(serverStart,current_block,path,temp_string)
-                        print("break_6")
+                        #print("break_6")
                         break
+                if end_pos_inData > len(data) :
+                    continue
 
                 # Append
                 # EG: if end_pos is 10, and len(data) is 10, Does work!
@@ -444,16 +447,16 @@ class Memory():#LoggingMixIn, Operations):
                 # Add Final Block w/ Null Characters
                 if start_pos_inData == len(data) :
                     # If start_pos Is Exactly Equal To The Amount of Existing Data, End
-                    print("break_7")
-                    break
+                    #print("continue_7")
+                    continue
                 else :
                     self.appendBlock(   serverStart, 
                                         current_block, 
                                         path, 
                                         ( data[start_pos_inData:len(data)]+((_BLOCKSIZE-(len(data)-start_pos_inData))*"\x00") )
                     )
-                    print("break__BLOCKSIZE")
-                    break
+                    #print("continue__BLOCKSIZE")
+                    continue
         self.meta_proxy.write(pathname, len(data), offset) # Meta Server
         return
 
@@ -475,24 +478,16 @@ def main():
     #def read(self, path, size, offset, fh)
     #def rename(self, old, new)
 
-
     test.create("test1.txt",0)
-    print("Create Success")
-
     test.write("test1.txt","Hello World",0,0)
-    print("Write Success")
-
     print(test.readlink("test1.txt"))
-    return
 
     """
     test.create("test2.txt",0)
     test.write("test2.txt","Hello World",_BLOCKSIZE,0)
     test.write("test2.txt","Hello Again",41,0)
     print(test.readlink("test2.txt"))
-    """
 
-    """
     test.create("test3.txt",0)
     test.write("test3.txt","Hello World",7,0)
     test.write("test3.txt","Go Away",13,0)
@@ -502,18 +497,13 @@ def main():
     test.write("test5.txt","Go Away",13,0)
     test.write("test5.txt","Hello World",7,0)
     print("HERE: "+test.readlink("test5.txt"))
-    """
 
-    """
     test.create("test4.txt",0)
     test.write("test4.txt","Hello Again",41,0)
     print(test.readlink("test4.txt"))
-    test.write("test4.txt","Hello World",_BLOCKSIZE,0)
+    test.write("test4.txt","Hello World",8,0)
     print(test.readlink("test4.txt"))
-    """
 
-
-    """
     test.create("test.txt", 0)
     test.write("test.txt", "Hello World My Name is Brian Dillon", 0, 0)
     print(test.readlink("test.txt"))
@@ -522,9 +512,7 @@ def main():
 
     test.unlink("test.txt")
     print(test.readlink("test.txt"))
-    """
 
-    """
     test.symlink("path.txt","data   data data data")
     print(test.readlink("path.txt"))
     print(test.readdir(None,None))
@@ -545,9 +533,7 @@ def main():
     print(test.getattr("otherpath.txt"))
 
     print(test.readdir(None,None))
-    """
 
-    """
     test.create("alphabet.txt",0) #a=0,i=8,q=16,y=24
     test.write("alphabet.txt","abcdefghijklmnopqrstuvwxyz",0,0)
     print(test.read("alphabet.txt",8,0,0))
@@ -556,17 +542,9 @@ def main():
     print(test.read("alphabet.txt",26,1,0))
     print(test.read("alphabet.txt",15,20,0))
     print(test.read("alphabet.txt",15,9,0))
+    """
 
     return
-    """
-
-    """
-    test.create("test.txt", 0)
-    test.write("test.txt", "Hello World", 0, 0)
-    print(test.readlink("test.txt"))
-
-    return
-    """
 
 
 if __name__ == '__main__':
