@@ -15,10 +15,10 @@ from xmlrpclib import Binary
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
-_SUCCESS = 0
-_FAILURE = -1
+_SUCCESS = int(0)
+_FAILURE = int(-1)
 
-_BLOCKSIZE = 8
+_BLOCKSIZE = int(8)
 
 class Memory(LoggingMixIn, Operations):
 
@@ -30,7 +30,7 @@ class Memory(LoggingMixIn, Operations):
         for i in range(0,len(iaDataPorts)) :
             self.data_proxy_array.append( xmlrpclib.ServerProxy("http://localhost:"+str(iaDataPorts[i])+"/") )
             print("xmlrpclib.ServerProxy(\"http://localhost:"+str(iaDataPorts[i])+"/\")")
-        self.number_data_servers = len(iaDataPorts)
+        self.number_data_servers = int(len(iaDataPorts))
 
     # Helper Functions #
 
@@ -41,13 +41,13 @@ class Memory(LoggingMixIn, Operations):
         block_start = int(block_start)
         block_number = int(block_number)
         # Binary
-        return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].putAppend(pathname,Binary(string))
+        return self.data_proxy_array[ int((block_start+block_number)%self.number_data_servers) ].putAppend(pathname,Binary(string))
 
     def overwriteBlock(self, block_start, block_number, pathname, string):
         block_start = int(block_start)
         block_number = int(block_number)
         # Binary
-        return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].putOverwrite(   pathname, 
+        return self.data_proxy_array[ int((block_start+block_number)%self.number_data_servers) ].putOverwrite(   pathname, 
                                                                                                         Binary(string), 
                                                                                                     block_number/self.number_data_servers)
 
@@ -64,31 +64,36 @@ class Memory(LoggingMixIn, Operations):
         # Test for Corruption, but if # If temp_string == "" or _FAILURE, readlink()
         #self.readlink(pathname[:-1])
 
-        string = ( self.data_proxy_array[(block_start+block_number)%self.number_data_servers].get(pathname,(block_number/self.number_data_servers)) )
+        string = ( self.data_proxy_array[int((block_start+block_number)%self.number_data_servers)].get(pathname,int(block_number/self.number_data_servers)) )
 
         #print(string)
         string = string.data #Un Binary
         return string
 
     def readRepair(self, block_start, block_number, pathname):
-        block_start = int(block_start)
-        block_number = int(block_number)
+        block_start_int = int(block_start)
+        block_number_int = int(block_number)
 
-        serverStart0 = block_start
-        serverStart1 = (block_start+1)%self.number_data_servers
-        serverStart2 = (block_start+2)%self.number_data_servers
+        serverStart0 = block_start_int
+        serverStart1 = (block_start_int+1)%self.number_data_servers
+        serverStart2 = (block_start_int+2)%self.number_data_servers
 
         path0 = pathname + str(serverStart0)
         path1 = pathname + str(serverStart1)
         path2 = pathname + str(serverStart2)
 
-        string0 = ( self.data_proxy_array[(serverStart0+block_number)%self.number_data_servers].get(path0,(block_number/self.number_data_servers)) )
-        string1 = ( self.data_proxy_array[(serverStart1+block_number)%self.number_data_servers].get(path1,(block_number/self.number_data_servers)) )
-        string2 = ( self.data_proxy_array[(serverStart2+block_number)%self.number_data_servers].get(path2,(block_number/self.number_data_servers)) )
+        string0 = ( self.data_proxy_array[int((serverStart0+block_number_int)%self.number_data_servers)].get(path0,int(block_number_int/self.number_data_servers)) )
+        string1 = ( self.data_proxy_array[int((serverStart1+block_number_int)%self.number_data_servers)].get(path1,int(block_number_int/self.number_data_servers)) )
+        string2 = ( self.data_proxy_array[int((serverStart2+block_number_int)%self.number_data_servers)].get(path2,int(block_number_int/self.number_data_servers)) )
 
         string0 = string0.data
         string1 = string1.data
         string2 = string2.data
+        
+        print("LOOK HERE!")
+        print(string0)
+        print(string1)
+        print(string2)
 
         counter = 0
         # Test To See If Data Server Crash
@@ -103,32 +108,32 @@ class Memory(LoggingMixIn, Operations):
             return ""
         if counter == 1 :
             if(string0 == _FAILURE or string0 == "") :
-                self.appendBlock(serverStart0, block_number, path0, string2 )
+                self.appendBlock(serverStart0, block_number_int, path0, string2 )
                 return string2
             if(string1 == _FAILURE or string1 == "") :
-                self.appendBlock(serverStart1, block_number, path1, string2 )
+                self.appendBlock(serverStart1, block_number_int, path1, string2 )
                 return string2
             if(string2 == _FAILURE or string2 == "") :
-                self.appendBlock(serverStart2, block_number, path2, string0 )
+                self.appendBlock(serverStart2, block_number_int, path2, string0 )
                 return string0
             
         # Test to See If Corruption
         if string0 == string1 :
             if string0 != string2 :
                 #Corruption In String2
-                self.overwriteBlock(serverStart2, block_number, path2, string0)
+                self.overwriteBlock(serverStart2, block_number_int, path2, string0)
                 return string0
 
         if string0 == string2 :
             if string0 != string1 :
                 #Corruption In String1
-                self.overwriteBlock(serverStart1, block_number, path1, string0)
+                self.overwriteBlock(serverStart1, block_number_int, path1, string0)
                 return string1
 
         if string1 == string2 :
             if string0 != string1 :
                 #Corruption in String0
-                self.overwriteBlock(serverStart0, block_number, path0, string1)
+                self.overwriteBlock(serverStart0, block_number_int, path0, string1)
                 return string2
 
         return string0
@@ -272,7 +277,8 @@ class Memory(LoggingMixIn, Operations):
         self.meta_proxy.rmdir(path) # Meta Server
 
     def setxattr(self, path, name, value, options, position=0):
-        return self.meta_proxy.setxattr(path, name, value) # Meta Server
+        self.meta_proxy.setxattr(path, name, value) # Meta Server
+        return
 
     def statfs(self, path):
         return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
@@ -347,13 +353,13 @@ class Memory(LoggingMixIn, Operations):
 
         # Data Servers
         pathname = path
-        serverStart0 = self.startHash(path)
-        serverStart1 = (serverStart0 + 1)% self.number_data_servers
-        serverStart2 = (serverStart0 + 2)% self.number_data_servers
-        current_filesize = self.meta_proxy.getxattr(path,'st_size')
+        serverStart0 = int(self.startHash(path))
+        serverStart1 = int((serverStart0 + 1)% self.number_data_servers)
+        serverStart2 = int((serverStart0 + 2)% self.number_data_servers)
+        current_filesize = int(self.meta_proxy.getxattr(path,'st_size'))
 
         blocks_existing = int(current_filesize / _BLOCKSIZE)
-        remainder = current_filesize % _BLOCKSIZE
+        remainder = int(current_filesize % _BLOCKSIZE)
         if remainder != 0 :
             blocks_existing += 1
 
@@ -376,20 +382,20 @@ class Memory(LoggingMixIn, Operations):
 
                 # Add Character Block Starting At Offset
                 start_pos = 0
-                end_pos = _BLOCKSIZE-(offset%_BLOCKSIZE)
+                end_pos = _BLOCKSIZE-int(offset%_BLOCKSIZE)
                 
                 # Special Case When (len(data)) is Less Than What Can Be Written
                 #print("special case")
                 if end_pos >= len(data) :
                     self.appendBlock( serverStart, block_offset_start, path,
-                        (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:len(data)]+("\x00"*(end_pos-len(data))))
+                        (("\x00"*int(offset%_BLOCKSIZE))+data[start_pos:len(data)]+("\x00"*(end_pos-len(data))))
                     )
                     # print("continue_1")
                     continue
 
                 # Else, Add As Normal
                 #print("append block start")
-                self.appendBlock( serverStart, block_offset_start, path, (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:end_pos]) )
+                self.appendBlock( serverStart, block_offset_start, path, (("\x00"*int(offset%_BLOCKSIZE))+data[start_pos:end_pos]) )
                 start_pos = end_pos
                 end_pos += _BLOCKSIZE
                 current_block_number = block_offset_start+1
@@ -423,7 +429,7 @@ class Memory(LoggingMixIn, Operations):
 
                 current_block = block_offset_start
 
-                start_pos_inBlock = offset%_BLOCKSIZE
+                start_pos_inBlock = int(offset%_BLOCKSIZE)
                 start_pos_inData = 0
                 end_pos_inData = _BLOCKSIZE - start_pos_inBlock
 
@@ -493,8 +499,7 @@ class Memory(LoggingMixIn, Operations):
                     )
                     #print("continue__BLOCKSIZE")
                     continue
-        self.meta_proxy.write(pathname, len(data), offset) # Meta Server
-        return
+        return self.meta_proxy.write(pathname, len(data), offset) # Meta Server
 
                     
 if __name__ == '__main__':
