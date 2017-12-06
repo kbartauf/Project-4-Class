@@ -433,6 +433,7 @@ class metaserver():
         parent_node.files_specs[filename] = dict(st_mode= (S_IFLNK | 0o777),
                                                 st_nlink= 1,
                                                 st_size= source_len )
+        return _SUCCESS
 
 
     def truncate(self, path, length):

@@ -40,7 +40,7 @@ class Memory():#LoggingMixIn, Operations):
         #print(");")
 
         string = ( self.data_proxy_array[(block_start+block_number)%self.number_data_servers].get(pathname,(block_number/self.number_data_servers)) )
-        print(string)
+        #print(string)
         string = string.data #Un Binary
         return string
 
@@ -84,10 +84,15 @@ class Memory():#LoggingMixIn, Operations):
 
     def read(self, path, size, offset, fh):
         # Data Servers
+        serverStart = self.startHash(path)
         filesize = self.meta_proxy.getxattr(path,'st_size')
         data = ""
 
-        number_blocks_dataserver = (filesize-1)/_BLOCKSIZE
+        number_blocks_dataserver = filesize/_BLOCKSIZE
+        if (filesize%_BLOCKSIZE) != 0 :
+            number_blocks_dataserver += 1
+
+
         start_block = offset/_BLOCKSIZE
         possible_end_block = (offset+size-1)/_BLOCKSIZE
 
@@ -140,19 +145,24 @@ class Memory():#LoggingMixIn, Operations):
         return
 
     def rename(self, old, new):
-        data = self.readlink(old)
-        if data == _FAILURE :
-            print("OLD does not exist")
+        mode = self.meta_proxy.getxattr(old,'st_mode')
+        #print(mode)
+        if mode == _FAILURE :
+            #print("OLD does not exist")
             return
-        mode = self.getxattr(old,'st_mode')
-        temp = self.readlink(new)
+        #print("OLD exists")
+        data = self.readlink(old)
 
+        temp = self.meta_proxy.getxattr(new,'st_mode')
+        #print(temp)
         if temp == _FAILURE :
+            #print("NEW does not exist")
             self.unlink(old)
             self.create(new, mode)
             self.write(new, data, 0, 0)
             return
         else :
+            #print("NEW already exists")
             return
 
     def rmdir(self, path):
@@ -166,39 +176,41 @@ class Memory():#LoggingMixIn, Operations):
 
     def symlink(self, target, source):
 
+        server_start = self.startHash(target)
         self.unlink(target) # First, Delete File If Already Existing
 
         # Data Servers, Add All Blocks
-        number_blocks = len(source)/8
+        number_blocks = len(source)/_BLOCKSIZE
+        if (len(source)%_BLOCKSIZE) != 0 :
+            number_blocks += 1
+
         for i in range(0,number_blocks-1) :
-            appendBlock(block_start,i,target,source[(8*i):(8*(i+1))])
+            self.appendBlock(server_start,i,target,source[(_BLOCKSIZE*i):(_BLOCKSIZE*(i+1))])
 
         final_block = number_blocks-1
-        appendBlock(    block_start,
+        self.appendBlock(server_start,
                         final_block,
                         target,
-                        ( (source[(8*final_block):])+("\x00"*(_BLOCKSIZE-(final_block%_BLOCKSIZE))) )
+                        ( source[(_BLOCKSIZE*final_block):] + ("\x00"*(_BLOCKSIZE-(final_block%_BLOCKSIZE))) )
         )
 
         self.meta_proxy.symlink(target, len(source)) # Meta Server
 
-    """
-#    def truncate(self, path, length, fh=None):
-        self.meta_proxy.truncate(path, length) # Meta Server
 
-        # Data Servers
-        startServer = self.startHash(path)
-        length = float(length)
-        bsize = float(bsize
-        keep = length/bsize
-        for i in data_server_array:
-            self.data_server_array[(startServer+i)%numServers].truncateData(floor(keep))
-        if (keep-floor(keep))) > 0
-            trunc = self.data_server_arrray[resolveBlkNum(path,floor(keep))].get(path,floor(keep)/numServers)
-            for i in len((_BLOCKSIZE-((keep-floor(keep))*_BLOCKSIZE)):
-                trunc[7-i] = None
-                self.data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
-    """
+    def truncate(self, path, length, fh=None):
+        string = self.readlink(path)
+        mode = self.getxattr(path,'st_mode')
+        if length < len(string) :
+            # Shorten
+            string = string[:length]
+        elif length > len(string) :
+            # Lengthen
+            string = string+((length-len(string))*'\x00')
+
+        self.unlink(path)
+        self.create(path,mode)
+        self.write(path,string,0,0)
+
 
     def unlink(self, path):
         self.meta_proxy.unlink(path) # Meta Server
@@ -229,9 +241,9 @@ class Memory():#LoggingMixIn, Operations):
         for serverStart in [serverStart0]: #,(serverStart0+1),(serverStart0+2)] :
             print("serverStart= "+str(serverStart))
 
+            print("blocks_existing= "+str(blocks_existing)+"<="+"block_offset_start= "+str(block_offset_start))
             # If Block # Offset is Past Current Blocks Existing, Need to Add Null Characters Blocks
-            if( blocks_existing < block_offset_start ) :
-                print("blocks_existing= "+str(blocks_existing)+"<"+"block_offset_start= "+str(block_offset_start))
+            if( blocks_existing <= block_offset_start ) :
 
                 # Add Empty Null Character Blocks Up To, But Not Including, Block_Offset_Start
                 for i in range(blocks_existing, block_offset_start):
@@ -353,7 +365,7 @@ class Memory():#LoggingMixIn, Operations):
                                         path, 
                                         ( data[start_pos_inData:len(data)]+((_BLOCKSIZE-(len(data)-start_pos_inData))*"\x00") )
                     )
-                    print("break_8")
+                    print("break__BLOCKSIZE")
                     break
         self.meta_proxy.write(path, len(data), offset) # Meta Server
         return
@@ -382,25 +394,32 @@ def main():
     print(test.readlink("test1.txt"))
     """
 
-    #test.create("test2.txt",0)
-    #test.write("test2.txt","Hello World",8,0)
-    #test.write("test2.txt","Hello Again",41,0)
-    #print(test.readlink("test2.txt"))
+    """
+    test.create("test2.txt",0)
+    test.write("test2.txt","Hello World",_BLOCKSIZE,0)
+    test.write("test2.txt","Hello Again",41,0)
+    print(test.readlink("test2.txt"))
+    """
 
-    #test.create("test3.txt",0)
-    #test.write("text3.txt","Hello World",7,0)
-    #test.write("text3.txt","Go Away",13,0)
-    #print(test.readlink("test3.txt"))
+    """
+    test.create("test3.txt",0)
+    test.write("test3.txt","Hello World",7,0)
+    test.write("test3.txt","Go Away",13,0)
+    print("HERE: "+test.readlink("test3.txt"))
 
+    test.create("test5.txt",0)
+    test.write("test5.txt","Go Away",13,0)
+    test.write("test5.txt","Hello World",7,0)
+    print("HERE: "+test.readlink("test5.txt"))
+    """
+
+    """
     test.create("test4.txt",0)
     test.write("test4.txt","Hello Again",41,0)
     print(test.readlink("test4.txt"))
-    test.write("test4.txt","Hello World",8,0)
+    test.write("test4.txt","Hello World",_BLOCKSIZE,0)
     print(test.readlink("test4.txt"))
-
-
-
-    return
+    """
 
 
     """
@@ -412,9 +431,41 @@ def main():
 
     test.unlink("test.txt")
     print(test.readlink("test.txt"))
+    """
+
+    """
+    test.symlink("path.txt","data   data data data")
+    print(test.readlink("path.txt"))
+    print(test.readdir(None,None))
+
+    test.rename("path.txt","otherpath.txt")
+    print(test.readlink("path.txt"))
+    print(test.readlink("otherpath.txt"))
+    print(test.readdir(None,None))
+
+    test.symlink("path.txt","data   data data data") #21 Characters
+
+    test.truncate("path.txt",30)
+    test.truncate("otherpath.txt",4)
+    print(test.readlink("path.txt"))
+    print(test.readlink("otherpath.txt"))
+
+    print(test.getattr("path.txt"))
+    print(test.getattr("otherpath.txt"))
+
+    print(test.readdir(None,None))
+    """
+
+    test.create("alphabet.txt",0) #a=0,i=8,q=16,y=24
+    test.write("alphabet.txt","abcdefghijklmnopqrstuvwxyz",0,0)
+    print(test.read("alphabet.txt",8,0,0))
+    print(test.read("alphabet.txt",1,1,0))
+    print(test.read("alphabet.txt",26,0,0))
+    print(test.read("alphabet.txt",26,1,0))
+    print(test.read("alphabet.txt",15,20,0))
+    print(test.read("alphabet.txt",15,9,0))
 
     return
-    """
 
 
     """
