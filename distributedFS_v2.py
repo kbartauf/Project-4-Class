@@ -1,8 +1,9 @@
 import sys
 import xmlrpclib
+from xmlrpclib import Binary
 
 _SUCCESS = 0
-_FAILURE = 1
+_FAILURE = -1
 
 _BLOCKSIZE = 8
 
@@ -21,11 +22,13 @@ class Memory():#LoggingMixIn, Operations):
         return (hash(path)%self.number_data_servers)
 
     def appendBlock(self, block_start, block_number, pathname, string ):
-        return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].putAppend(pathname,string)
+        # Binary
+        return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].putAppend(pathname,Binary(string))
 
     def overwriteBlock(self, block_start, block_number, pathname, string):
+        # Binary
         return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].putOverwrite(   pathname, 
-                                                                                                        string, 
+                                                                                                        Binary(string), 
                                                                                                     block_number/self.number_data_servers)
 
     def readBlock(self, block_start, block_number, pathname ):
@@ -36,9 +39,10 @@ class Memory():#LoggingMixIn, Operations):
         #print(block_number/self.number_data_servers)
         #print(");")
 
-        return self.data_proxy_array[ (block_start+block_number)%self.number_data_servers ].get(    pathname,
-                                                                                                    block_number/self.number_data_servers)
-
+        string = ( self.data_proxy_array[(block_start+block_number)%self.number_data_servers].get(pathname,(block_number/self.number_data_servers)) )
+        print(string)
+        string = string.data #Un Binary
+        return string
 
 
     #def readRepair(self, serverStart, block_number, pathname ):
@@ -109,6 +113,8 @@ class Memory():#LoggingMixIn, Operations):
     def readlink(self, path):
         # Data
         filesize = self.meta_proxy.getxattr(path,'st_size')
+        if filesize == _FAILURE :
+            return "" #return str ?????
         if filesize == 0 :
             return ""
 
@@ -134,10 +140,20 @@ class Memory():#LoggingMixIn, Operations):
         return
 
     def rename(self, old, new):
-        for proxy in self.data_proxy_array:
-            proxy.rename(old, new) # Data Servers
-        self.meta_proxy.rename(old, new) # Meta
-        return
+        data = self.readlink(old)
+        if data == _FAILURE :
+            print("OLD does not exist")
+            return
+        mode = self.getxattr(old,'st_mode')
+        temp = self.readlink(new)
+
+        if temp == _FAILURE :
+            self.unlink(old)
+            self.create(new, mode)
+            self.write(new, data, 0, 0)
+            return
+        else :
+            return
 
     def rmdir(self, path):
         self.meta_proxy.rmdir(path) # Meta Server
@@ -161,7 +177,7 @@ class Memory():#LoggingMixIn, Operations):
         appendBlock(    block_start,
                         final_block,
                         target,
-                        ( (source[(8*final_block):])+("/x00"*(_BLOCKSIZE-(final_block%_BLOCKSIZE))) )
+                        ( (source[(8*final_block):])+("\x00"*(_BLOCKSIZE-(final_block%_BLOCKSIZE))) )
         )
 
         self.meta_proxy.symlink(target, len(source)) # Meta Server
@@ -182,13 +198,13 @@ class Memory():#LoggingMixIn, Operations):
             for i in len((_BLOCKSIZE-((keep-floor(keep))*_BLOCKSIZE)):
                 trunc[7-i] = None
                 self.data_server_arrray[resolveBlkNum(path,floor(keep))].putOverwrite(path,trunc,floor(keep)/numServers)         
-"""
+    """
 
     def unlink(self, path):
         self.meta_proxy.unlink(path) # Meta Server
         # Data Servers
         for proxy in self.data_proxy_array : # Delete Existing File First, Or Should It Throw an Error?
-            proxy.unlink(target)
+            proxy.unlink(path)
 
     def utimens(self, path, times=None):
         if times :
@@ -203,51 +219,66 @@ class Memory():#LoggingMixIn, Operations):
         current_filesize = self.meta_proxy.getxattr(path,'st_size')
 
         blocks_existing = current_filesize / _BLOCKSIZE
+        remainder = current_filesize % _BLOCKSIZE
+        if remainder != 0 :
+            blocks_existing += 1
+
+
         block_offset_start = offset / _BLOCKSIZE
 
-        for serverStart in [serverStart0] :
+        for serverStart in [serverStart0]: #,(serverStart0+1),(serverStart0+2)] :
+            print("serverStart= "+str(serverStart))
 
             # If Block # Offset is Past Current Blocks Existing, Need to Add Null Characters Blocks
             if( blocks_existing < block_offset_start ) :
+                print("blocks_existing= "+str(blocks_existing)+"<"+"block_offset_start= "+str(block_offset_start))
 
                 # Add Empty Null Character Blocks Up To, But Not Including, Block_Offset_Start
-                for i in range(blocks_existing+1, block_offset_start):
-                    self.appendBlock( serverStart, i, path, ("/x00"*_BLOCKSIZE) )
+                for i in range(blocks_existing, block_offset_start):
+                    print("i= "+str(i)+" for adding empty null character blocks")
+                    self.appendBlock( serverStart, i, path, ('\x00'*_BLOCKSIZE) )
 
                 # Add Character Block Starting At Offset
                 start_pos = 0
                 end_pos = _BLOCKSIZE-(offset%_BLOCKSIZE)
                 
                 # Special Case When (len(data)) is Less Than What Can Be Written
+                print("special case")
                 if end_pos >= len(data) :
                     self.appendBlock( serverStart, block_offset_start, path,
-                        (("/x00"*(offset%_BLOCKSIZE))+data[start_pos:len(data)]+("/x00"*(end_pos-len(data))))
+                        (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:len(data)]+("\x00"*(end_pos-len(data))))
                     )
+                    print("break_1")
                     break
 
                 # Else, Add As Normal
-                self.appendBlock( serverStart, block_offset_start, path, (("/x00"*(offset%_BLOCKSIZE))+data[start_pos:end_pos]) )
+                print("append block start")
+                self.appendBlock( serverStart, block_offset_start, path, (("\x00"*(offset%_BLOCKSIZE))+data[start_pos:end_pos]) )
                 start_pos = end_pos
                 end_pos += _BLOCKSIZE
                 current_block_number = block_offset_start+1
 
                 # EG: if end_pos is 10, and len(data) is 10, Does work!
                 while end_pos <= len(data) :
+                    print("end_pos= "+str(end_pos)+" continued appending")
                     self.appendBlock( serverStart, current_block_number, path, data[start_pos:end_pos] )
                     start_pos += _BLOCKSIZE
                     end_pos += _BLOCKSIZE
                     current_block_number += 1
 
                 # Add Final Block w/ Null Characters
+                print("add final block maybe")
                 if start_pos == len(data) :
                     # If start_pos Is Exactly Equal To The Amount of Existing Data, End
+                    print("break_2")
                     break
                 else :
                     self.appendBlock(   serverStart, 
                                         current_block_number, 
                                         path, 
-                                        ( data[start_pos:len(data)]+((_BLOCKSIZE-(len(data)-start_pos))*"/x00") )
+                                        ( data[start_pos:len(data)]+((_BLOCKSIZE-(len(data)-start_pos))*"\x00") )
                     )
+                    print("break_3")
                     break
 
 
@@ -267,6 +298,7 @@ class Memory():#LoggingMixIn, Operations):
                         temp_string = self.readBlock( serverStart, block_offset_start, path )
                         temp_string = temp_string[:start_pos_inBlock] + data[:len(data)] + temp_string[start_pos_inBlock+len(data):]
                         self.overwriteBlock( serverStart, block_offset_start, path, temp_string)
+                        print("break_4")
                         break
 
                     temp_string = self.readBlock( serverStart, block_offset_start, path )
@@ -284,6 +316,7 @@ class Memory():#LoggingMixIn, Operations):
                 # Overwrite/Append Block
                 # Overwrite
                 while current_block < blocks_existing :
+                    print("Current_block="+str(current_block)+" < Blocks_existing="+str(blocks_existing))
                     if end_pos_inData <= len(data) :
                         self.overwriteBlock( serverStart, current_block, path, data[start_pos_inData:end_pos_inData] )
                         start_pos_inData += _BLOCKSIZE
@@ -293,10 +326,12 @@ class Memory():#LoggingMixIn, Operations):
                     else :
                         # Deal W/ Uneven Final Block, And End
                         if start_pos_inData >= len(data) :
+                            print("break_5")
                             break
                         temp_string = self.readBlock(serverStart, current_block, path)
                         temp_string = data[(start_pos_inData):(len(data))] + temp_string[(len(data)-start_pos_inData):]
                         self.overwriteBlock(serverStart,current_block,path,temp_string)
+                        print("break_6")
                         break
 
                 # Append
@@ -310,13 +345,15 @@ class Memory():#LoggingMixIn, Operations):
                 # Add Final Block w/ Null Characters
                 if start_pos_inData == len(data) :
                     # If start_pos Is Exactly Equal To The Amount of Existing Data, End
+                    print("break_7")
                     break
                 else :
                     self.appendBlock(   serverStart, 
                                         current_block, 
                                         path, 
-                                        ( data[start_pos_inData:len(data)]+((_BLOCKSIZE-(len(data)-start_pos_inData))*"/x00") )
+                                        ( data[start_pos_inData:len(data)]+((_BLOCKSIZE-(len(data)-start_pos_inData))*"\x00") )
                     )
+                    print("break_8")
                     break
         self.meta_proxy.write(path, len(data), offset) # Meta Server
         return
@@ -336,12 +373,57 @@ def main():
 
     #def write(self, path, data, offset, fh):
     #def readlink(self, path):
+    #def read(self, path, size, offset, fh)
+    #def rename(self, old, new)
 
+    """
+    test.create("test1.txt",0)
+    test.write("test1.txt","Hello World",17,0)
+    print(test.readlink("test1.txt"))
+    """
+
+    #test.create("test2.txt",0)
+    #test.write("test2.txt","Hello World",8,0)
+    #test.write("test2.txt","Hello Again",41,0)
+    #print(test.readlink("test2.txt"))
+
+    #test.create("test3.txt",0)
+    #test.write("text3.txt","Hello World",7,0)
+    #test.write("text3.txt","Go Away",13,0)
+    #print(test.readlink("test3.txt"))
+
+    test.create("test4.txt",0)
+    test.write("test4.txt","Hello Again",41,0)
+    print(test.readlink("test4.txt"))
+    test.write("test4.txt","Hello World",8,0)
+    print(test.readlink("test4.txt"))
+
+
+
+    return
+
+
+    """
+    test.create("test.txt", 0)
+    test.write("test.txt", "Hello World My Name is Brian Dillon", 0, 0)
+    print(test.readlink("test.txt"))
+    test.write("test.txt", "Hello World My Name is Kevin Barta ", 0, 0)
+    print(test.readlink("test.txt"))
+
+    test.unlink("test.txt")
+    print(test.readlink("test.txt"))
+
+    return
+    """
+
+
+    """
     test.create("test.txt", 0)
     test.write("test.txt", "Hello World", 0, 0)
     print(test.readlink("test.txt"))
 
     return
+    """
 
 
 if __name__ == '__main__':

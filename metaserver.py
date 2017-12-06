@@ -4,7 +4,7 @@ from stat import S_IFDIR, S_IFLNK, S_IFREG
 from time import time
 
 _SUCCESS = 0
-_FAILURE = 1
+_FAILURE = -1
 
 # To Do:
     # Update nlink Mechanics (Hard Links??)

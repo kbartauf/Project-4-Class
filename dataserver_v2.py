@@ -1,10 +1,11 @@
 import sys
 from SimpleXMLRPCServer import SimpleXMLRPCServer
+from xmlrpclib import Binary
 import shelve
 from collections import defaultdict
 
 _SUCCESS = 0
-_FAILURE = 1
+_FAILURE = -1
 
 
 class dataserver():
@@ -29,11 +30,11 @@ class dataserver():
             rv = temp[blkNum]
             d.close()
             print("get("+hashkey+","+str(blkNum)+"): "+rv)
-            return rv
+            return Binary(rv) #Binary
         else :
             d.close()
             print("get _FAILURE")
-            return _FAILURE
+            return Binary(_FAILURE) #Binary
 
 
     def truncateData(self, path, numBlks):
@@ -55,6 +56,7 @@ class dataserver():
 
         hashkey = str(hash(key))
         d = shelve.open(self.shelveString)
+        value = value.data #Un Binary
 
         if d.has_key(hashkey) :
             temp = d[hashkey]
@@ -74,6 +76,7 @@ class dataserver():
 
         hashkey = str(hash(key))
         d = shelve.open(self.shelveString)
+        value = value.data #Un Binary
 
         if d.has_key(hashkey) :
             temp = d[hashkey]
