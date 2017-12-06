@@ -16,14 +16,14 @@ class metaTreeNode():
 
         self.directory_spec = dict(
                                 st_mode=(S_IFDIR|0o755),
+                                st_nlink=2,
+                                st_size=0,
                                 st_ctime=time(),
                                 st_mtime=time(),
-                                st_atime=time(),
-                                st_nlink=2,
+                                st_atime=time() )
                                 #st_uid,
                                 #st_gid,
-                                #st_size=0,
-                                st_HASH_ID = uniqueID )
+                                #st_HASH_ID = uniqueID )
 
 
 class metaserver():
